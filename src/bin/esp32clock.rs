@@ -85,9 +85,9 @@ fn main() -> anyhow::Result<()> {
     let pins = peripherals.pins;
 
     let spi = peripherals.spi2;
-    let sclk = pins.gpio0.downgrade();
-    let sdo = pins.gpio1.downgrade();
-    let cs = pins.gpio2.downgrade();
+    let sclk = pins.gpio0.downgrade_output();
+    let cs = pins.gpio1.downgrade_output();
+    let sdo = pins.gpio2.downgrade_output();
 
     info!("Initializing Wi-Fi...");
 

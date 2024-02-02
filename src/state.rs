@@ -2,15 +2,15 @@
 
 use crate::*;
 
-use esp_idf_hal::{gpio::AnyIOPin, spi::SPI2};
+use esp_idf_hal::{gpio::AnyOutputPin, spi::SPI2};
 use esp_idf_svc::nvs;
 use tokio::sync::RwLock;
 
 pub struct LedSpi {
     pub spi: SPI2,
-    pub sclk: AnyIOPin,
-    pub sdo: AnyIOPin,
-    pub cs: AnyIOPin,
+    pub sclk: AnyOutputPin,
+    pub sdo: AnyOutputPin,
+    pub cs: AnyOutputPin,
 }
 
 // unsafe impl Send for LedSpi {}

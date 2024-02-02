@@ -19,14 +19,16 @@ panic-halt = "0"
 anyhow = "1"
 axum = { version = "0", features = ["http1", "json"] }
 axum-macros = "0"
+bit_reverse = "0"
 crc = "3"
 embedded-hal = "1"
 embedded-svc = { version = "0", features = ["experimental"] }
+encoding_rs = "0"
 esp-idf-hal = "0"
 esp-idf-svc = { version = "0", features = ["alloc", "experimental"] }
 esp-idf-sys = { version = "0", features = ["binstart"] }
 futures = "0"
-heapless = "0"
+# heapless = "0"
 log = "0"
 max7219 = "0"
 mio = { version = "0", features = ["log"] }
