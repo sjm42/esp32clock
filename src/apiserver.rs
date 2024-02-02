@@ -4,11 +4,19 @@ use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json, R
 pub use axum_macros::debug_handler;
 use log::*;
 use std::{net, net::SocketAddr, pin::Pin, sync::Arc};
+use tokio::time::{sleep, Duration};
 // use tower_http::trace::TraceLayer;
 
 use crate::*;
 
-pub async fn api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
+pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
+    loop {
+        if *state.wifi_up.read().await {
+            break;
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+
     let listen = format!("0.0.0.0:{}", state.config.read().await.port);
     let addr = listen.parse::<SocketAddr>()?;
 

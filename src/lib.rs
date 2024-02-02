@@ -10,6 +10,9 @@ pub use config::*;
 mod state;
 pub use state::*;
 
+mod font;
+pub use font::*;
+
 mod apiserver;
 pub use apiserver::*;
 
@@ -19,7 +22,7 @@ pub use clock::*;
 mod display;
 pub use display::*;
 
-mod font;
-pub use font::*;
+mod wifi;
+pub use wifi::*;
 
 // EOF

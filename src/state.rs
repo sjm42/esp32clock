@@ -21,6 +21,7 @@ pub struct MyState {
     pub cnt: RwLock<u64>,
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
     pub spi: RwLock<Option<LedSpi>>,
+    pub wifi_up: RwLock<bool>,
     pub reset: RwLock<bool>,
 }
 

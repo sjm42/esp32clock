@@ -1,25 +1,14 @@
 // bin/esp32ircbot.rs
 #![warn(clippy::large_futures)]
 
-use anyhow::bail;
-use embedded_svc::wifi::{ClientConfiguration, Configuration};
-use esp_idf_hal::{gpio::*, prelude::*};
+use esp_idf_hal::{delay::FreeRtos, gpio::*, prelude::*};
 use esp_idf_svc::{
-    eventloop::EspSystemEventLoop,
-    ipv4,
-    netif::{self, EspNetif},
-    nvs,
-    timer::EspTaskTimerService,
-    wifi::{AsyncWifi, EspWifi, WifiDriver},
+    eventloop::EspSystemEventLoop, nvs, timer::EspTaskTimerService, wifi::WifiDriver,
 };
-use esp_idf_sys::{self as _};
-use esp_idf_sys::{esp, esp_app_desc};
+use esp_idf_sys::{self as _, esp, esp_app_desc};
 use log::*;
 use std::sync::Arc;
-use tokio::{
-    sync::RwLock,
-    time::{sleep, Duration},
-};
+use tokio::sync::RwLock;
 
 use esp32clock::*;
 
@@ -89,41 +78,18 @@ fn main() -> anyhow::Result<()> {
     let cs = pins.gpio1.downgrade_output();
     let sdo = pins.gpio2.downgrade_output();
 
-    info!("Initializing Wi-Fi...");
-
-    let ipv4_config = if config.v4dhcp {
-        ipv4::ClientConfiguration::DHCP(ipv4::DHCPClientSettings::default())
-    } else {
-        ipv4::ClientConfiguration::Fixed(ipv4::ClientSettings {
-            ip: config.v4addr,
-            subnet: ipv4::Subnet {
-                gateway: config.v4gw,
-                mask: ipv4::Mask(config.v4mask),
-            },
-            dns: None,
-            secondary_dns: None,
-        })
-    };
-    // info!("IP config: {ipv4_config:?}");
-
-    let net_if = EspNetif::new_with_conf(&netif::NetifConfiguration {
-        ip_configuration: ipv4::Configuration::Client(ipv4_config),
-        ..netif::NetifConfiguration::wifi_default_client()
-    })?;
-
     let wifidriver = WifiDriver::new(
         peripherals.modem,
         sysloop.clone(),
         Some(nvs_default_partition),
     )?;
-    let espwifi = EspWifi::wrap_all(wifidriver, net_if, EspNetif::new(netif::NetifStack::Ap)?)?;
-    let wifi = AsyncWifi::wrap(espwifi, sysloop, timer.clone())?;
 
     let state = Box::pin(MyState {
         config: RwLock::new(config),
         cnt: RwLock::new(0),
         nvs: RwLock::new(nvs),
         spi: RwLock::new(Some(LedSpi { spi, sclk, sdo, cs })),
+        wifi_up: RwLock::new(false),
         reset: RwLock::new(false),
     });
     let shared_state = Arc::new(state);
@@ -132,139 +98,25 @@ fn main() -> anyhow::Result<()> {
         .enable_all()
         .build()?
         .block_on(Box::pin(async move {
-            let mut wifi_loop = WifiLoop { wifi };
-            Box::pin(wifi_loop.configure(shared_state.clone())).await?;
-
-            if let Err(e) = Box::pin(wifi_loop.initial_connect()).await {
-                error!("WiFi connection failed: {e:?}");
-                {
-                    // failed boot, increase boot fail counter or reset "factory" settings
-
-                    let mut nvs = shared_state.nvs.write().await;
-                    let mut config = shared_state.config.write().await;
-
-                    let cnt = &mut config.bfc;
-                    if *cnt > BOOT_FAIL_MAX {
-                        error!("Maximum boot fails. Resetting settings to default.");
-                        let c = MyConfig::default();
-                        if c.to_nvs(&mut nvs).is_ok() {
-                            info!("Successfully saved default config to nvs.");
-                        }
-                    } else {
-                        *cnt += 1;
-                        config.to_nvs(&mut nvs).ok();
-                    }
-                }
-                error!("Resetting...");
-                sleep(Duration::from_secs(5)).await;
-                esp_idf_hal::reset::restart();
-            }
-
-            // Successful startup, wifi connected: reset fail counter.
-            {
-                let mut config = shared_state.config.write().await;
-                let cnt = &mut config.bfc;
-                if *cnt > 0 {
-                    info!("Successful startup, resetting boot fail counter.");
-                    *cnt = 0;
-                    let mut nvs = shared_state.nvs.write().await;
-                    if config.to_nvs(&mut nvs).is_ok() {
-                        info!("Successfully saved config to nvs.");
-                    }
-                }
-            }
+            let wifi_loop = WifiLoop {
+                state: shared_state.clone(),
+                wifi: None,
+            };
 
             info!("Entering main loop...");
             tokio::select! {
-                _ = Box::pin(api_server(shared_state.clone())) => {}
                 _ = Box::pin(run_clock(shared_state.clone())) => {}
-                _ = Box::pin(wifi_loop.stay_connected()) => {}
+                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
+                _ = Box::pin(run_api_server(shared_state.clone())) => {}
             };
-            Ok(())
-        }))
-}
+        }));
 
-pub struct WifiLoop<'a> {
-    wifi: AsyncWifi<EspWifi<'a>>,
-}
+    // not actually returing from main() but we reboot instead
+    info!("main() finished, reboot.");
+    FreeRtos::delay_ms(3000);
+    esp_idf_hal::reset::restart();
 
-impl<'a> WifiLoop<'a> {
-    pub async fn configure(
-        &mut self,
-        state: Arc<std::pin::Pin<Box<MyState>>>,
-    ) -> anyhow::Result<()> {
-        info!("WiFi setting credentials...");
-        self.wifi
-            .set_configuration(&Configuration::Client(ClientConfiguration {
-                ssid: state
-                    .config
-                    .read()
-                    .await
-                    .wifi_ssid
-                    .as_str()
-                    .try_into()
-                    .unwrap(),
-                password: state
-                    .config
-                    .read()
-                    .await
-                    .wifi_pass
-                    .as_str()
-                    .try_into()
-                    .unwrap(),
-                ..Default::default()
-            }))?;
-
-        info!("WiFi driver starting...");
-        Ok(Box::pin(self.wifi.start()).await?)
-    }
-
-    pub async fn initial_connect(&mut self) -> anyhow::Result<()> {
-        self.do_connect_loop(true).await
-    }
-
-    pub async fn stay_connected(mut self) -> anyhow::Result<()> {
-        self.do_connect_loop(false).await
-    }
-
-    async fn do_connect_loop(&mut self, initial: bool) -> anyhow::Result<()> {
-        let wifi = &mut self.wifi;
-        loop {
-            // Wait for disconnect before trying to connect again.  This loop ensures
-            // we stay connected and is commonly missing from trivial examples as it's
-            // way too difficult to showcase the core logic of an example and have
-            // a proper Wi-Fi event loop without a robust async runtime.  Fortunately, we can do it
-            // now!
-            let timeout = if initial {
-                Some(Duration::from_secs(30))
-            } else {
-                None
-            };
-            Box::pin(wifi.wifi_wait(|w| w.is_up(), timeout)).await.ok();
-
-            info!("WiFi connecting...");
-            Box::pin(wifi.connect()).await.ok();
-
-            info!("WiFi waiting for association...");
-            match Box::pin(wifi.ip_wait_while(|w| w.is_up().map(|s| !s), None)).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("WiFi error: {e:?}");
-
-                    // only exit here if this is initial connection
-                    // otherwise, keep trying
-                    if initial {
-                        bail!(e);
-                    }
-                }
-            }
-
-            info!("WiFi connected.");
-            if initial {
-                return Ok(());
-            }
-        }
-    }
+    Ok(())
 }
 
 // EOF

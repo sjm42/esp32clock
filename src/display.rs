@@ -55,7 +55,7 @@ impl<'a> MyDisplay {
             let offset = (*c as usize) * 8;
 
             (0..8).for_each(|r| {
-                self.fbuf[d][r] = *&FONT[offset + r];
+                self.fbuf[d][r] = FONT[offset + r];
             })
         }
     }
@@ -94,10 +94,12 @@ impl<'a> MyDisplay {
         self.show_buf(&self.fbuf, led_mat);
     }
 
-    pub async fn marquee<S>(&mut self, led_mat: &mut LedMatrix<'_>, s: S)
+    pub async fn marquee<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
     {
+        let delay = std::cmp::max(1, delay as u64);
+
         let c_count = s.as_ref().chars().count();
         let msg = if c_count < MAX_TEXT_SIZE {
             s.as_ref()
@@ -124,7 +126,7 @@ impl<'a> MyDisplay {
             let rv = [0u8; 8];
             dbuf.push(rv);
             (0..8).for_each(|r| {
-                dbuf[d][r] = *&FONT[offset + r];
+                dbuf[d][r] = FONT[offset + r];
             })
         }
 
@@ -139,7 +141,7 @@ impl<'a> MyDisplay {
             }
 
             self.show_buf(&dbuf[0..ELEMS], led_mat);
-            sleep(Duration::from_millis(20)).await;
+            sleep(Duration::from_millis(delay)).await;
         }
 
         // cleanup
@@ -147,10 +149,12 @@ impl<'a> MyDisplay {
         self.show(led_mat);
     }
 
-    pub async fn drop<S>(&mut self, led_mat: &mut LedMatrix<'_>, s: S)
+    pub async fn drop<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
     {
+        let delay = std::cmp::max(1, delay as u64);
+
         let c_count = s.as_ref().chars().count();
         let msg = if c_count < ELEMS {
             s.as_ref()
@@ -175,20 +179,20 @@ impl<'a> MyDisplay {
         for (d, c) in buf.iter().enumerate() {
             let offset = (*c as usize) * 8;
             (0..8).for_each(|r| {
-                dbuf[d][r] = *&FONT[offset + r];
+                dbuf[d][r] = FONT[offset + r];
             })
         }
 
         for p in 0..8 {
-            for d in 0..ELEMS {
+            for (d, c) in dbuf.iter().enumerate().take(ELEMS) {
                 for r in (1..8).rev() {
                     self.fbuf[d][r] = self.fbuf[d][r - 1];
                 }
-                self.fbuf[d][0] = dbuf[d][7 - p];
+                self.fbuf[d][0] = c[7 - p];
             }
 
             self.show(led_mat);
-            sleep(Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(delay)).await;
         }
     }
 }

@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 
@@ -20,6 +20,8 @@ anyhow = "1"
 axum = { version = "0", features = ["http1", "json"] }
 axum-macros = "0"
 bit_reverse = "0"
+chrono = "0"
+chrono-tz = "0"
 crc = "3"
 embedded-hal = "1"
 embedded-svc = { version = "0", features = ["experimental"] }
@@ -49,11 +51,11 @@ anyhow = "1"
 
 
 [profile.release]
-debug = false
+debug = true
 opt-level = "z"
 codegen-units = 1
 lto = "fat"
-strip = true
+strip = false
 
 [profile.dev]
 debug = true
