@@ -78,7 +78,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             Box::pin(disp.marquee(25, &mut led_mat, &date)).await;
 
             local = Utc::now().with_timezone(&Helsinki);
-            let ts = local.format("%H:%M   ").to_string();
+            let ts = local.format("%H:%M:%S").to_string();
             Box::pin(disp.drop(10, &mut led_mat, &ts)).await;
 
             continue;
