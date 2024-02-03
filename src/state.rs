@@ -1,5 +1,7 @@
 // state.rs
 
+use std::net::Ipv4Addr;
+
 use crate::*;
 
 use esp_idf_hal::{gpio::AnyOutputPin, spi::SPI2};
@@ -22,6 +24,8 @@ pub struct MyState {
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
     pub spi: RwLock<Option<LedSpi>>,
     pub wifi_up: RwLock<bool>,
+    pub ip_addr: RwLock<Ipv4Addr>,
+    pub temp: RwLock<f32>,
     pub reset: RwLock<bool>,
 }
 

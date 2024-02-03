@@ -22,6 +22,9 @@ pub use clock::*;
 mod display;
 pub use display::*;
 
+mod temp;
+pub use temp::*;
+
 mod wifi;
 pub use wifi::*;
 

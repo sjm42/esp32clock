@@ -1,4 +1,5 @@
-// bin/esp32ircbot.rs
+// bin/esp32clock.rs
+
 #![warn(clippy::large_futures)]
 
 use esp_idf_hal::{delay::FreeRtos, gpio::*, prelude::*};
@@ -7,7 +8,7 @@ use esp_idf_svc::{
 };
 use esp_idf_sys::{self as _, esp, esp_app_desc};
 use log::*;
-use std::sync::Arc;
+use std::{net, sync::Arc};
 use tokio::sync::RwLock;
 
 use esp32clock::*;
@@ -90,6 +91,8 @@ fn main() -> anyhow::Result<()> {
         nvs: RwLock::new(nvs),
         spi: RwLock::new(Some(LedSpi { spi, sclk, sdo, cs })),
         wifi_up: RwLock::new(false),
+        ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
+        temp: RwLock::new(-1000.0),
         reset: RwLock::new(false),
     });
     let shared_state = Arc::new(state);
@@ -106,8 +109,10 @@ fn main() -> anyhow::Result<()> {
             info!("Entering main loop...");
             tokio::select! {
                 _ = Box::pin(run_clock(shared_state.clone())) => {}
-                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
+                _ = Box::pin(run_temp(shared_state.clone(), "foo".into())) => {}
                 _ = Box::pin(run_api_server(shared_state.clone())) => {}
+                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
+
             };
         }));
 

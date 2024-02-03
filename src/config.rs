@@ -27,6 +27,11 @@ pub struct MyConfig {
     pub v4addr: net::Ipv4Addr,
     pub v4mask: u8,
     pub v4gw: net::Ipv4Addr,
+
+    pub enable_temp: bool,
+    pub temp_name: String,
+    pub mqtt_url: String,
+    pub mqtt_topic: String,
 }
 
 impl Default for MyConfig {
@@ -46,6 +51,11 @@ impl Default for MyConfig {
             v4addr: net::Ipv4Addr::new(0, 0, 0, 0),
             v4mask: 0,
             v4gw: net::Ipv4Addr::new(0, 0, 0, 0),
+
+            enable_temp: false,
+            temp_name: "Temp".into(),
+            mqtt_url: "mqtt://127.0.0.1:1883".into(),
+            mqtt_topic: "out_temperature".into(),
         }
     }
 }

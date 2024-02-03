@@ -93,7 +93,18 @@ impl<'a> WifiLoop<'a> {
                 }
             }
         }
+        sleep(Duration::from_secs(2)).await;
+
+        *self.state.ip_addr.write().await = self
+            .wifi
+            .as_ref()
+            .unwrap()
+            .wifi()
+            .sta_netif()
+            .get_ip_info()?
+            .ip;
         *self.state.wifi_up.write().await = true;
+
         self.stay_connected().await
     }
 
