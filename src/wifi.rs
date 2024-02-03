@@ -49,6 +49,11 @@ impl<'a> WifiLoop<'a> {
             ip_configuration: ipv4::Configuration::Client(ipv4_config),
             ..netif::NetifConfiguration::wifi_default_client()
         })?;
+        let mac = net_if.get_mac()?;
+        *self.state.myid.write().await = format!(
+            "esp32clock-{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+        );
 
         let espwifi = EspWifi::wrap_all(wifidriver, net_if, EspNetif::new(netif::NetifStack::Ap)?)?;
         self.wifi = Some(AsyncWifi::wrap(espwifi, sysloop, timer.clone())?);

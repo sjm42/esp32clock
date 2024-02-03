@@ -92,6 +92,7 @@ fn main() -> anyhow::Result<()> {
         spi: RwLock::new(Some(LedSpi { spi, sclk, sdo, cs })),
         wifi_up: RwLock::new(false),
         ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
+        myid: RwLock::new("esp32clock".into()),
         temp: RwLock::new(-1000.0),
         reset: RwLock::new(false),
     });
@@ -109,7 +110,7 @@ fn main() -> anyhow::Result<()> {
             info!("Entering main loop...");
             tokio::select! {
                 _ = Box::pin(run_clock(shared_state.clone())) => {}
-                _ = Box::pin(run_temp(shared_state.clone(), "foo".into())) => {}
+                _ = Box::pin(run_temp(shared_state.clone())) => {}
                 _ = Box::pin(run_api_server(shared_state.clone())) => {}
                 _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
 

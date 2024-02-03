@@ -25,6 +25,7 @@ pub struct MyState {
     pub spi: RwLock<Option<LedSpi>>,
     pub wifi_up: RwLock<bool>,
     pub ip_addr: RwLock<Ipv4Addr>,
+    pub myid: RwLock<String>,
     pub temp: RwLock<f32>,
     pub reset: RwLock<bool>,
 }

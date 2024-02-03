@@ -16,7 +16,7 @@ pub struct Temperature {
     temperature: f32,
 }
 
-pub async fn run_temp(state: Arc<Pin<Box<MyState>>>, myname: String) -> anyhow::Result<()> {
+pub async fn run_temp(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     if !state.config.read().await.enable_temp {
         info!("Temp is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
@@ -29,11 +29,13 @@ pub async fn run_temp(state: Arc<Pin<Box<MyState>>>, myname: String) -> anyhow::
         sleep(Duration::from_secs(10)).await;
         {
             let url = &state.config.read().await.mqtt_url;
-            info!("MQTT conn: {url}");
+            let myid = state.myid.read().await.clone();
+            info!("MQTT conn: {url} [{myid}]");
+
             let (client, conn) = match mqtt::client::EspAsyncMqttClient::new(
                 url,
                 &mqtt::client::MqttClientConfiguration {
-                    client_id: Some(&myname),
+                    client_id: Some(&myid),
                     keep_alive_interval: Some(Duration::from_secs(25)),
                     ..Default::default()
                 },
