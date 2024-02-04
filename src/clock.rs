@@ -113,7 +113,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         }
 
         if time_drop {
-            let intensity = if (8..=23).contains(&hour) { 4 } else { 1 };
+            let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
             (0..8).for_each(|i| {
                 led_mat.set_intensity(i, intensity).ok();
             });
