@@ -199,13 +199,22 @@ impl<'a> MyDisplay {
         }
     }
 
-    pub async fn message<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, msg: S)
-    where
+    pub async fn message<S>(
+        &mut self,
+        delay: u8,
+        led_mat: &mut LedMatrix<'_>,
+        msg: S,
+        lang: &MyLang,
+    ) where
         S: AsRef<str>,
     {
-        let v = "-Viesti!";
+        let v = match lang {
+            MyLang::Eng => "Message!",
+            MyLang::Fin => "-Viesti!",
+        };
         Box::pin(self.drop(10, led_mat, v)).await;
         sleep(Duration::from_millis(1000)).await;
+
         for _ in 0..4 {
             self.clear();
             self.show(led_mat);
@@ -218,6 +227,7 @@ impl<'a> MyDisplay {
 
         Box::pin(self.drop(10, led_mat, msg.as_ref())).await;
         sleep(Duration::from_millis(1000)).await;
+
         Box::pin(self.marquee(delay, led_mat, msg.as_ref())).await;
     }
 }

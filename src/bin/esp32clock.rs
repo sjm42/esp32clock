@@ -2,6 +2,7 @@
 
 #![warn(clippy::large_futures)]
 
+use chrono_tz::Etc::UTC;
 use esp_idf_hal::{delay::FreeRtos, gpio::*, prelude::*};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, timer::EspTaskTimerService, wifi::WifiDriver,
@@ -71,6 +72,17 @@ fn main() -> anyhow::Result<()> {
     };
     info!("My config:\n{config:#?}");
 
+    info!("Setting timezone...");
+    let tz_s = &config.tz;
+    let tz = match tz_s.parse() {
+        Ok(tz) => tz,
+        Err(e) => {
+            error!("Cannot parse timezone {tz_s:?}: {e:?}");
+            error!("Defaulting to UTC.");
+            UTC
+        }
+    };
+
     let peripherals = Peripherals::take().unwrap();
     let pins = peripherals.pins;
 
@@ -95,6 +107,7 @@ fn main() -> anyhow::Result<()> {
         myid: RwLock::new("esp32clock".into()),
         temp: RwLock::new(-1000.0),
         msg: RwLock::new(None),
+        tz: RwLock::new(tz),
         reset: RwLock::new(false),
     });
     let shared_state = Arc::new(state);

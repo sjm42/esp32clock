@@ -3,7 +3,6 @@
 use crate::*;
 
 use chrono::*;
-use chrono_tz::Europe::Helsinki;
 use esp_idf_hal::{gpio::*, prelude::*, spi};
 use esp_idf_svc::sntp;
 use max7219::MAX7219;
@@ -27,6 +26,8 @@ const MONTH_FI: [&str; 12] = [
 ];
 
 pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
+    // set up SPI bus and MAX7219 driver
+
     let led_spi = state.spi.write().await.take().unwrap();
     let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
         led_spi.spi,
@@ -39,6 +40,8 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(led_spi.cs), &spiconfig)?;
     let mut led_mat = MAX7219::from_spi(8, spi_dev).unwrap();
 
+    // set up led matrix display
+
     led_mat.power_on().ok();
     (0..8).for_each(|i| {
         led_mat.clear_display(i).ok();
@@ -46,6 +49,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     });
     let mut disp = MyDisplay::new_upside_down();
 
+    // wait for WiFi connection to complete
     let mut cnt = 0;
     loop {
         if *state.wifi_up.read().await {
@@ -61,10 +65,14 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     Box::pin(disp.drop(10, &mut led_mat, "Connect!")).await;
     sleep(Duration::from_millis(1000)).await;
 
+    // show our IP address briefly
+
     let ip_info = format!("IP: {}", state.ip_addr.read().await);
     Box::pin(disp.drop(10, &mut led_mat, &ip_info)).await;
     sleep(Duration::from_millis(500)).await;
     Box::pin(disp.marquee(10, &mut led_mat, &ip_info)).await;
+
+    // start up NTP
 
     Box::pin(disp.drop(10, &mut led_mat, "NTP.....")).await;
     sleep(Duration::from_millis(500)).await;
@@ -73,7 +81,12 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     Box::pin(disp.drop(10, &mut led_mat, "NTP OK! ")).await;
     sleep(Duration::from_millis(500)).await;
 
+    // set up language and timezone
+
     let lang = &state.config.read().await.lang;
+    let tz = &*state.tz.read().await;
+
+    // finally, move to the main clock display loop
 
     let mut time_drop = true;
     loop {
@@ -88,7 +101,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             }
         }
 
-        let local = Utc::now().with_timezone(&Helsinki);
+        let local = Utc::now().with_timezone(tz);
         let hour = local.hour();
         let min = local.minute();
         let sec = local.second();
@@ -100,6 +113,11 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         }
 
         if time_drop {
+            let intensity = if (8..=23).contains(&hour) { 4 } else { 1 };
+            (0..8).for_each(|i| {
+                led_mat.set_intensity(i, intensity).ok();
+            });
+
             Box::pin(disp.drop(10, &mut led_mat, &ts)).await;
         } else {
             disp.print(&ts);
@@ -108,10 +126,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
         time_drop = match sec {
             11 | 41 => {
-                let intensity = if (8..=23).contains(&hour) { 4 } else { 1 };
-                (0..8).for_each(|i| {
-                    led_mat.set_intensity(i, intensity).ok();
-                });
+                // show date
 
                 let wday_s = match lang {
                     MyLang::Eng => WEEKDAY_EN[local.weekday() as usize],
@@ -126,16 +141,18 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
                 let date_s1 = format!(" {wday_s} {day}. ");
                 Box::pin(disp.drop(10, &mut led_mat, &date_s1)).await;
-                sleep(Duration::from_millis(1000)).await;
+                sleep(Duration::from_millis(1500)).await;
 
                 let date_s2 = format!("{mon_s} {year:04}");
                 Box::pin(disp.drop(10, &mut led_mat, &date_s2)).await;
-                sleep(Duration::from_millis(1000)).await;
+                sleep(Duration::from_millis(1500)).await;
 
                 true
             }
 
             1 | 21 | 31 | 51 => {
+                // show temperature
+
                 let t = *state.temp.read().await;
                 if t > -1000.0 {
                     let temp_s = format!(" {t:+.1}°C");
@@ -150,9 +167,9 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             _ => false,
         };
 
-        // Whoa we have an incoming message to display!
+        // Whoa, we have an incoming message to display!
         if let Some(msg) = state.msg.write().await.take() {
-            Box::pin(disp.message(50, &mut led_mat, &msg)).await;
+            Box::pin(disp.message(50, &mut led_mat, &msg, lang)).await;
         }
     }
 }

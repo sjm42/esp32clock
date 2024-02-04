@@ -4,6 +4,7 @@ use std::net::Ipv4Addr;
 
 use crate::*;
 
+use chrono_tz::Tz;
 use esp_idf_hal::{gpio::AnyOutputPin, spi::SPI2};
 use esp_idf_svc::nvs;
 use tokio::sync::RwLock;
@@ -28,6 +29,7 @@ pub struct MyState {
     pub myid: RwLock<String>,
     pub temp: RwLock<f32>,
     pub msg: RwLock<Option<String>>,
+    pub tz: RwLock<Tz>,
     pub reset: RwLock<bool>,
 }
 

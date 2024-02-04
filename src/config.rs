@@ -39,6 +39,7 @@ pub struct MyConfig {
     pub temp_topic: String,
 
     pub lang: MyLang,
+    pub tz: String,
 }
 
 impl Default for MyConfig {
@@ -64,6 +65,7 @@ impl Default for MyConfig {
             temp_topic: "out_temperature".into(),
 
             lang: MyLang::Fin,
+            tz: "Europe/Helsinki".into(),
         }
     }
 }
