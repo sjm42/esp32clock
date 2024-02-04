@@ -150,7 +150,7 @@ impl<'a> MyDisplay {
         self.show(led_mat);
     }
 
-    pub async fn drop<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
+    pub async fn vscroll<S>(&mut self, delay: u8, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
     {
@@ -185,17 +185,33 @@ impl<'a> MyDisplay {
             })
         }
 
-        // finally drop the new text into place, i.e. dbuf --> fbuf
-        for p in 0..8 {
-            for (d, c) in dbuf.iter().enumerate().take(ELEMS) {
-                for r in (1..8).rev() {
-                    self.fbuf[d][r] = self.fbuf[d][r - 1];
-                }
-                self.fbuf[d][0] = c[7 - p];
-            }
-            self.show(led_mat);
+        // finally drop/rise the new text into place, i.e. dbuf --> fbuf
 
-            sleep(Duration::from_millis(delay)).await;
+        if rise {
+            for p in 0..8 {
+                for (d, c) in dbuf.iter().enumerate().take(ELEMS) {
+                    for r in 0..7 {
+                        self.fbuf[d][r] = self.fbuf[d][r + 1];
+                    }
+                    self.fbuf[d][7] = c[p];
+                }
+                self.show(led_mat);
+
+                sleep(Duration::from_millis(delay)).await;
+            }
+        } else {
+            // drop
+            for p in (0..8).rev() {
+                for (d, c) in dbuf.iter().enumerate().take(ELEMS) {
+                    for r in (1..8).rev() {
+                        self.fbuf[d][r] = self.fbuf[d][r - 1];
+                    }
+                    self.fbuf[d][0] = c[p];
+                }
+                self.show(led_mat);
+
+                sleep(Duration::from_millis(delay)).await;
+            }
         }
     }
 
@@ -212,7 +228,7 @@ impl<'a> MyDisplay {
             MyLang::Eng => "Message!",
             MyLang::Fin => "-Viesti!",
         };
-        Box::pin(self.drop(10, led_mat, v)).await;
+        Box::pin(self.vscroll(delay, false, led_mat, v)).await;
         sleep(Duration::from_millis(1000)).await;
 
         for _ in 0..4 {
@@ -225,7 +241,7 @@ impl<'a> MyDisplay {
             sleep(Duration::from_millis(200)).await;
         }
 
-        Box::pin(self.drop(10, led_mat, msg.as_ref())).await;
+        Box::pin(self.vscroll(delay, true, led_mat, msg.as_ref())).await;
         sleep(Duration::from_millis(1000)).await;
 
         Box::pin(self.marquee(delay, led_mat, msg.as_ref())).await;

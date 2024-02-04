@@ -1,20 +1,14 @@
 // mqtt.rs
 
 use anyhow::bail;
-use core::f32;
+use chrono::Utc;
 use embedded_svc::mqtt::client::EventPayload;
 use esp_idf_svc::mqtt;
 use log::*;
-use serde::Deserialize;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
 use crate::*;
-
-#[derive(Debug, Deserialize)]
-pub struct Temperature {
-    temperature: f32,
-}
 
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     if !state.config.read().await.enable_mqtt {
@@ -102,19 +96,28 @@ async fn event_loop(
             if topic == temp_topic {
                 match serde_json::from_slice::<Temperature>(data) {
                     Err(e) => {
-                        error!("JSON error: {e}");
+                        error!("Temp JSON error: {e}");
                     }
                     Ok(t) => {
                         info!("Got temp: {t:?}");
                         *state.temp.write().await = t.temperature;
+                        *state.temp_t.write().await = Utc::now().timestamp();
                     }
                 }
                 continue;
             }
 
             // all other topics are considered as incoming message
-            let msg = String::from_utf8_lossy(data);
-            *state.msg.write().await = Some(msg.into());
+
+            match serde_json::from_slice::<MyMessage>(data) {
+                Err(e) => {
+                    error!("Msg JSON error: {e}");
+                }
+                Ok(m) => {
+                    info!("Got msg: {m:?}");
+                    *state.msg.write().await = Some(m.msg);
+                }
+            }
         }
     }
     bail!("MQTT closed.")

@@ -8,22 +8,7 @@ use esp_idf_svc::sntp;
 use max7219::MAX7219;
 use tokio::time::{sleep, Duration};
 
-const SPIN: [char; 4] = ['|', '/', '-', '\\'];
-
-const WEEKDAY_EN: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-const WEEKDAY_FI: [&str; 7] = ["Ma", "Ti", "Ke", "To", "Pe", "La", "Su"];
-
-#[rustfmt::skip]
-const MONTH_EN: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-#[rustfmt::skip]
-const MONTH_FI: [&str; 12] = [
-    "Tam", "Hel", "Maa", "Huh", "Tou", "Kes",
-    "Hei", "Elo", "Syy", "Lok", "Mar", "Jou",
-];
+const DEFAULT_VSCROLLD: u8 = 20;
 
 pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
     // set up SPI bus and MAX7219 driver
@@ -62,23 +47,23 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         sleep(Duration::from_millis(200)).await;
     }
 
-    Box::pin(disp.drop(10, &mut led_mat, "Connect!")).await;
+    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "Connect!")).await;
     sleep(Duration::from_millis(1000)).await;
 
     // show our IP address briefly
 
     let ip_info = format!("IP: {}", state.ip_addr.read().await);
-    Box::pin(disp.drop(10, &mut led_mat, &ip_info)).await;
+    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &ip_info)).await;
     sleep(Duration::from_millis(500)).await;
-    Box::pin(disp.marquee(10, &mut led_mat, &ip_info)).await;
+    Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
 
     // start up NTP
 
-    Box::pin(disp.drop(10, &mut led_mat, "NTP.....")).await;
+    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "NTP.....")).await;
     sleep(Duration::from_millis(500)).await;
 
     let _ntp = sntp::EspSntp::new_default()?;
-    Box::pin(disp.drop(10, &mut led_mat, "NTP OK! ")).await;
+    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
     sleep(Duration::from_millis(500)).await;
 
     // set up language and timezone
@@ -88,9 +73,11 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
     // finally, move to the main clock display loop
 
-    let mut time_drop = true;
+    let mut time_vscroll = Some(true);
     loop {
-        sleep(Duration::from_millis(200)).await;
+        if time_vscroll.is_none() {
+            sleep(Duration::from_millis(100)).await;
+        }
 
         {
             // is reset requested?
@@ -105,26 +92,26 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         let hour = local.hour();
         let min = local.minute();
         let sec = local.second();
-        let ts = local.format("%H:%M:%S").to_string();
+        let ts = local.format(" %H%M%S ").to_string();
 
         // Right after 04:42 local time, we are resetting
         if hour == 4 && min == 42 && (0..10).contains(&sec) {
             *state.reset.write().await = true;
         }
 
-        if time_drop {
+        if let Some(dir) = time_vscroll {
             let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
             (0..8).for_each(|i| {
                 led_mat.set_intensity(i, intensity).ok();
             });
 
-            Box::pin(disp.drop(10, &mut led_mat, &ts)).await;
+            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, dir, &mut led_mat, &ts)).await;
         } else {
             disp.print(&ts);
             disp.show(&mut led_mat);
         }
 
-        time_drop = match sec {
+        time_vscroll = match sec {
             11 | 41 => {
                 // show date
 
@@ -140,36 +127,42 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
                 let year = local.year();
 
                 let date_s1 = format!(" {wday_s} {day}. ");
-                Box::pin(disp.drop(10, &mut led_mat, &date_s1)).await;
-                sleep(Duration::from_millis(1500)).await;
-
                 let date_s2 = format!("{mon_s} {year:04}");
-                Box::pin(disp.drop(10, &mut led_mat, &date_s2)).await;
+
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
                 sleep(Duration::from_millis(1500)).await;
 
-                true
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
+                sleep(Duration::from_millis(1500)).await;
+
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
+
+                Some(false)
             }
 
-            1 | 21 | 31 | 51 => {
+            21 | 51 => {
                 // show temperature
 
                 let t = *state.temp.read().await;
-                if t > -1000.0 {
+
+                // don't show temperature if it was not updated ever, or more than 1 hour ago
+                if t > -1000.0 && *state.temp_t.read().await > local.timestamp() - 3600 {
                     let temp_s = format!(" {t:+.1}°C");
-                    Box::pin(disp.drop(10, &mut led_mat, &temp_s)).await;
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
                     sleep(Duration::from_millis(1500)).await;
 
-                    true
+                    Some(true)
                 } else {
-                    false
+                    None
                 }
             }
-            _ => false,
+            _ => None,
         };
 
         // Whoa, we have an incoming message to display!
         if let Some(msg) = state.msg.write().await.take() {
-            Box::pin(disp.message(50, &mut led_mat, &msg, lang)).await;
+            Box::pin(disp.message(DEFAULT_VSCROLLD, &mut led_mat, &msg, lang)).await;
+            time_vscroll = Some(true);
         }
     }
 }

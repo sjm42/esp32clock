@@ -2,12 +2,13 @@
 
 use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json, Router};
 pub use axum_macros::debug_handler;
+use chrono_tz::Tz;
 use log::*;
 use std::{net, net::SocketAddr, pin::Pin, sync::Arc};
 use tokio::time::{sleep, Duration};
 // use tower_http::trace::TraceLayer;
 
-use crate::*;
+pub use crate::*;
 
 pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     loop {
@@ -29,6 +30,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
             }),
         )
         .route("/conf", get(get_conf).post(set_conf))
+        .route("/msg", post(send_msg))
         .route("/reset_conf", get(reset_conf))
         .with_state(state);
     // .layer(TraceLayer::new_for_http());
@@ -58,9 +60,9 @@ pub async fn set_conf(
     }
 
     if config.v4mask > 30 {
-        let msg = "IPv4 mask error: bits must be between 0..30";
-        error!("{}", msg);
-        return (StatusCode::INTERNAL_SERVER_ERROR, msg.to_string());
+        let emsg = "IPv4 mask error: bits must be between 0..30\n";
+        error!("{emsg}");
+        return (StatusCode::INTERNAL_SERVER_ERROR, emsg.to_string());
     }
 
     if config.v4dhcp {
@@ -68,6 +70,13 @@ pub async fn set_conf(
         config.v4addr = net::Ipv4Addr::new(0, 0, 0, 0);
         config.v4mask = 0;
         config.v4gw = net::Ipv4Addr::new(0, 0, 0, 0);
+    }
+
+    let tz_s = &config.tz;
+    if let Err(e) = tz_s.parse::<Tz>() {
+        let emsg = format!("Cannot parse timezone {tz_s:?}: {e:?}\n");
+        error!("{emsg}");
+        return (StatusCode::BAD_REQUEST, emsg);
     }
 
     info!("Saving new config to nvs...");
@@ -90,13 +99,30 @@ async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> (StatusCo
         Ok(_) => {
             info!("Config saved to nvs. Resetting soon...");
             *state.reset.write().await = true;
-            (StatusCode::OK, "OK".to_string())
+            (StatusCode::OK, "OK\n".to_string())
         }
         Err(e) => {
-            let msg = format!("Nvs write error: {e:?}");
-            error!("{}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            let emsg = format!("Nvs write error: {e:?}\n");
+            error!("{emsg}");
+            (StatusCode::INTERNAL_SERVER_ERROR, emsg)
         }
     }
 }
+
+pub async fn send_msg(
+    State(state): State<Arc<Pin<Box<MyState>>>>,
+    Json(message): Json<MyMessage>,
+) -> (StatusCode, String) {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} send_msg()");
+    }
+
+    let msg = message.msg;
+    info!("Got msg: {msg}");
+    *state.msg.write().await = Some(msg);
+    (StatusCode::OK, "OK\n".to_string())
+}
+
 // EOF
