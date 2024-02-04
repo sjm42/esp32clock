@@ -27,6 +27,7 @@ pub struct MyState {
     pub ip_addr: RwLock<Ipv4Addr>,
     pub myid: RwLock<String>,
     pub temp: RwLock<f32>,
+    pub msg: RwLock<Option<String>>,
     pub reset: RwLock<bool>,
 }
 

@@ -94,6 +94,7 @@ fn main() -> anyhow::Result<()> {
         ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
         myid: RwLock::new("esp32clock".into()),
         temp: RwLock::new(-1000.0),
+        msg: RwLock::new(None),
         reset: RwLock::new(false),
     });
     let shared_state = Arc::new(state);
@@ -110,7 +111,7 @@ fn main() -> anyhow::Result<()> {
             info!("Entering main loop...");
             tokio::select! {
                 _ = Box::pin(run_clock(shared_state.clone())) => {}
-                _ = Box::pin(run_temp(shared_state.clone())) => {}
+                _ = Box::pin(run_mqtt(shared_state.clone())) => {}
                 _ = Box::pin(run_api_server(shared_state.clone())) => {}
                 _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
 

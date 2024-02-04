@@ -11,7 +11,14 @@ use tokio::time::{sleep, Duration};
 
 const SPIN: [char; 4] = ['|', '/', '-', '\\'];
 
+const WEEKDAY_EN: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const WEEKDAY_FI: [&str; 7] = ["Ma", "Ti", "Ke", "To", "Pe", "La", "Su"];
+
+#[rustfmt::skip]
+const MONTH_EN: [&str; 12] = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 #[rustfmt::skip]
 const MONTH_FI: [&str; 12] = [
@@ -66,6 +73,8 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     Box::pin(disp.drop(10, &mut led_mat, "NTP OK! ")).await;
     sleep(Duration::from_millis(500)).await;
 
+    let lang = &state.config.read().await.lang;
+
     let mut time_drop = true;
     loop {
         sleep(Duration::from_millis(200)).await;
@@ -80,10 +89,16 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         }
 
         let local = Utc::now().with_timezone(&Helsinki);
-        let s = local.second();
         let hour = local.hour();
-
+        let min = local.minute();
+        let sec = local.second();
         let ts = local.format("%H:%M:%S").to_string();
+
+        // Right after 04:42 local time, we are resetting
+        if hour == 4 && min == 42 && (0..10).contains(&sec) {
+            *state.reset.write().await = true;
+        }
+
         if time_drop {
             Box::pin(disp.drop(10, &mut led_mat, &ts)).await;
         } else {
@@ -91,15 +106,21 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             disp.show(&mut led_mat);
         }
 
-        time_drop = match s {
+        time_drop = match sec {
             11 | 41 => {
                 let intensity = if (8..=23).contains(&hour) { 4 } else { 1 };
                 (0..8).for_each(|i| {
                     led_mat.set_intensity(i, intensity).ok();
                 });
 
-                let wday_s = WEEKDAY_FI[local.weekday() as usize];
-                let mon_s = MONTH_FI[local.month0() as usize];
+                let wday_s = match lang {
+                    MyLang::Eng => WEEKDAY_EN[local.weekday() as usize],
+                    MyLang::Fin => WEEKDAY_FI[local.weekday() as usize],
+                };
+                let mon_s = match lang {
+                    MyLang::Eng => MONTH_EN[local.month0() as usize],
+                    MyLang::Fin => MONTH_FI[local.month0() as usize],
+                };
                 let day = local.day();
                 let year = local.year();
 
@@ -111,19 +132,15 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
                 Box::pin(disp.drop(10, &mut led_mat, &date_s2)).await;
                 sleep(Duration::from_millis(1000)).await;
 
-                // Box::pin(disp.marquee(5, &mut led_mat, &date_s)).await;
-
                 true
             }
 
-            01 | 21 | 31 | 51 => {
+            1 | 21 | 31 | 51 => {
                 let t = *state.temp.read().await;
                 if t > -1000.0 {
                     let temp_s = format!(" {t:+.1}°C");
                     Box::pin(disp.drop(10, &mut led_mat, &temp_s)).await;
                     sleep(Duration::from_millis(1500)).await;
-
-                    // Box::pin(disp.marquee(5, &mut led_mat, &temp_s)).await;
 
                     true
                 } else {
@@ -132,6 +149,11 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             }
             _ => false,
         };
+
+        // Whoa we have an incoming message to display!
+        if let Some(msg) = state.msg.write().await.take() {
+            Box::pin(disp.message(50, &mut led_mat, &msg)).await;
+        }
     }
 }
 

@@ -14,6 +14,12 @@ pub const BOOT_FAIL_MAX: u8 = 4;
 const DEFAULT_API_PORT: u16 = 80;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum MyLang {
+    Eng,
+    Fin,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MyConfig {
     // boot fail count
     pub bfc: u8,
@@ -28,10 +34,11 @@ pub struct MyConfig {
     pub v4mask: u8,
     pub v4gw: net::Ipv4Addr,
 
-    pub enable_temp: bool,
-    pub temp_name: String,
+    pub enable_mqtt: bool,
     pub mqtt_url: String,
-    pub mqtt_topic: String,
+    pub temp_topic: String,
+
+    pub lang: MyLang,
 }
 
 impl Default for MyConfig {
@@ -52,10 +59,11 @@ impl Default for MyConfig {
             v4mask: 0,
             v4gw: net::Ipv4Addr::new(0, 0, 0, 0),
 
-            enable_temp: false,
-            temp_name: "Temp".into(),
+            enable_mqtt: false,
             mqtt_url: "mqtt://127.0.0.1:1883".into(),
-            mqtt_topic: "out_temperature".into(),
+            temp_topic: "out_temperature".into(),
+
+            lang: MyLang::Fin,
         }
     }
 }

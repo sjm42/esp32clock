@@ -100,6 +100,7 @@ impl<'a> MyDisplay {
     {
         let delay = std::cmp::max(1, delay as u64);
 
+        // truncate too long strings
         let c_count = s.as_ref().chars().count();
         let msg = if c_count < MAX_TEXT_SIZE {
             s.as_ref()
@@ -155,11 +156,12 @@ impl<'a> MyDisplay {
     {
         let delay = std::cmp::max(1, delay as u64);
 
+        // truncate too long strings
         let c_count = s.as_ref().chars().count();
-        let msg = if c_count < ELEMS {
+        let msg = if c_count < MAX_TEXT_SIZE {
             s.as_ref()
         } else {
-            let cut = s.as_ref().floor_char_boundary(ELEMS);
+            let cut = s.as_ref().floor_char_boundary(MAX_TEXT_SIZE);
             let (s1, _s2) = s.as_ref().split_at(cut);
             s1
         };
@@ -176,13 +178,14 @@ impl<'a> MyDisplay {
 
         // render our new text to dbuf
         let mut dbuf = [[0u8; 8]; ELEMS];
-        for (d, c) in buf.iter().enumerate() {
+        for (d, c) in buf.iter().enumerate().take(ELEMS) {
             let offset = (*c as usize) * 8;
             (0..8).for_each(|r| {
                 dbuf[d][r] = FONT[offset + r];
             })
         }
 
+        // finally drop the new text into place, i.e. dbuf --> fbuf
         for p in 0..8 {
             for (d, c) in dbuf.iter().enumerate().take(ELEMS) {
                 for r in (1..8).rev() {
@@ -190,13 +193,34 @@ impl<'a> MyDisplay {
                 }
                 self.fbuf[d][0] = c[7 - p];
             }
-
             self.show(led_mat);
+
             sleep(Duration::from_millis(delay)).await;
         }
     }
-}
 
+    pub async fn message<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, msg: S)
+    where
+        S: AsRef<str>,
+    {
+        let v = "-Viesti!";
+        Box::pin(self.drop(10, led_mat, v)).await;
+        sleep(Duration::from_millis(1000)).await;
+        for _ in 0..4 {
+            self.clear();
+            self.show(led_mat);
+            sleep(Duration::from_millis(200)).await;
+
+            self.print(v);
+            self.show(led_mat);
+            sleep(Duration::from_millis(200)).await;
+        }
+
+        Box::pin(self.drop(10, led_mat, msg.as_ref())).await;
+        sleep(Duration::from_millis(1000)).await;
+        Box::pin(self.marquee(delay, led_mat, msg.as_ref())).await;
+    }
+}
 impl Default for MyDisplay {
     fn default() -> Self {
         Self::new(false)

@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 
@@ -21,8 +21,6 @@ axum-macros = "0"
 bit_reverse = "0"
 chrono = "0"
 chrono-tz = "0"
-# coap = { version = "0.14", default-features = false }
-# coap-lite = "0.11"
 crc = "3"
 embedded-hal = "1"
 embedded-svc = { version = "0", features = ["experimental"] }
@@ -31,7 +29,6 @@ esp-idf-hal = "0"
 esp-idf-svc = { version = "0", features = ["alloc", "experimental"] }
 esp-idf-sys = { version = "0", features = ["binstart"] }
 futures = "0"
-# heapless = "0"
 log = "0"
 max7219 = "0"
 mio = { version = "0", features = ["log"] }

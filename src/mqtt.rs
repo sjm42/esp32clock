@@ -1,4 +1,4 @@
-// temp.rs
+// mqtt.rs
 
 use anyhow::bail;
 use core::f32;
@@ -16,8 +16,8 @@ pub struct Temperature {
     temperature: f32,
 }
 
-pub async fn run_temp(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
-    if !state.config.read().await.enable_temp {
+pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
+    if !state.config.read().await.enable_mqtt {
         info!("Temp is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
         loop {
@@ -48,8 +48,8 @@ pub async fn run_temp(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
             };
 
             let _ = tokio::try_join!(
+                Box::pin(subscribe(state.clone(), client)),
                 Box::pin(event_loop(state.clone(), conn)),
-                Box::pin(subscribe(state.clone(), client))
             );
 
             error!("MQTT error, retrying...");
@@ -57,55 +57,67 @@ pub async fn run_temp(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     }
 }
 
-async fn event_loop(
-    state: Arc<Pin<Box<MyState>>>,
-    mut conn: mqtt::client::EspAsyncMqttConnection,
-) -> anyhow::Result<()> {
-    while let Ok(notification) = Box::pin(conn.next()).await {
-        debug!("MQTT recvd: {:?}", notification.payload());
-
-        if let EventPayload::Received {
-            id: _,
-            topic: _,
-            data,
-            details: _,
-        } = notification.payload()
-        {
-            match serde_json::from_slice::<Temperature>(data) {
-                Err(e) => {
-                    error!("JSON error: {e}");
-                }
-                Ok(t) => {
-                    info!("Got temp: {t:?}");
-                    *state.temp.write().await = t.temperature;
-                }
-            }
-        }
-    }
-    bail!("MQTT closed.")
-}
-
 async fn subscribe(
     state: Arc<Pin<Box<MyState>>>,
     mut client: mqtt::client::EspAsyncMqttClient,
 ) -> anyhow::Result<()> {
     info!("MQTT subscribing...");
-    if let Err(e) = client
-        .subscribe(
-            &state.config.read().await.mqtt_topic,
-            mqtt::client::QoS::AtLeastOnce,
-        )
-        .await
-    {
-        error!("MQTT subscribe error: {e}");
-        bail!(e);
-    } else {
-        info!("MQTT subscribed.");
+    for t in [
+        "esp32clock-all",
+        &state.myid.read().await,
+        &state.config.read().await.temp_topic,
+    ] {
+        info!("Subscribe: {t}");
+        if let Err(e) = client.subscribe(t, mqtt::client::QoS::AtLeastOnce).await {
+            error!("MQTT subscribe error: {e}");
+            bail!(e);
+        }
     }
+    info!("Subscribed.");
 
+    // we stay here looping slowly or the program will crash miserably, idk why.
     loop {
         sleep(Duration::from_secs(60)).await;
     }
+}
+
+async fn event_loop(
+    state: Arc<Pin<Box<MyState>>>,
+    mut conn: mqtt::client::EspAsyncMqttConnection,
+) -> anyhow::Result<()> {
+    let temp_topic = &state.config.read().await.temp_topic;
+
+    while let Ok(notification) = Box::pin(conn.next()).await {
+        debug!("MQTT recvd: {:?}", notification.payload());
+
+        if let EventPayload::Received {
+            id: _,
+            topic: Some(topic),
+            data,
+            details: _,
+        } = notification.payload()
+        {
+            info!("Rcvd topic: {topic}");
+
+            if topic == temp_topic {
+                match serde_json::from_slice::<Temperature>(data) {
+                    Err(e) => {
+                        error!("JSON error: {e}");
+                    }
+                    Ok(t) => {
+                        info!("Got temp: {t:?}");
+                        *state.temp.write().await = t.temperature;
+                    }
+                }
+                continue;
+            }
+
+            // all other topics are considered as incoming message
+            let msg = String::from_utf8_lossy(data);
+            *state.msg.write().await = Some(msg.into());
+        }
+    }
+    bail!("MQTT closed.")
 }
 
 // EOF
