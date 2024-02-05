@@ -20,7 +20,13 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     }
 
     loop {
-        sleep(Duration::from_secs(10)).await;
+        if *state.wifi_up.read().await {
+            break;
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+
+    loop {
         {
             let url = &state.config.read().await.mqtt_url;
             let myid = state.myid.read().await.clone();
