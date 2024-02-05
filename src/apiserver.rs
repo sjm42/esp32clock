@@ -2,7 +2,7 @@
 
 use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json, Router};
 pub use axum_macros::debug_handler;
-use chrono_tz::Tz;
+use chrono_tz::{Tz, TZ_VARIANTS};
 use log::*;
 use std::{net, net::SocketAddr, pin::Pin, sync::Arc};
 use tokio::time::{sleep, Duration};
@@ -30,6 +30,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
             }),
         )
         .route("/conf", get(get_conf).post(set_conf))
+        .route("/tz", get(list_timezones))
         .route("/msg", post(send_msg))
         .route("/reset_conf", get(reset_conf))
         .with_state(state);
@@ -123,6 +124,20 @@ pub async fn send_msg(
     info!("Got msg: {msg}");
     *state.msg.write().await = Some(msg);
     (StatusCode::OK, "OK\n".to_string())
+}
+
+pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> (StatusCode, String) {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} send_msg()");
+    }
+
+    let mut tz_s = String::with_capacity(1024);
+    for tz in TZ_VARIANTS {
+        tz_s.push_str(&format!("{tz}\n"));
+    }
+    (StatusCode::OK, tz_s)
 }
 
 // EOF
