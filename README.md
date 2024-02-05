@@ -1,6 +1,6 @@
-# esp32clock
+# ESP32 Clock
 
-Make a nice clock with ESP32 and MAX7219 8x8 led matrix displays
+A clock with ESP32 and MAX7219 8x8 led matrix displays
 
 ## Features
 
@@ -16,13 +16,15 @@ Make a nice clock with ESP32 and MAX7219 8x8 led matrix displays
 
 ## Hardware
 
-- ESP32-C3 module by WeAct studio is recommended, but the firmware should work on almost any ESP32 supporting WiFi
-- if using a different module with different pinout and/or cpu, the pin config and build parameters must be adjusted
+- ESP32-C3 module by WeAct studio with RISC-V cpu is recommended, but the firmware should work on almost any ESP32 supporting WiFi
+- the firmware takes roughly 2.5MB of flash, so a cpu module with 2 MB is not sufficient. At least 4 MB is needed.
+- if the timezone support is removed, firmware will easily fit in 2 MB, tho. It should be behind a feature gate, but it's not yet.
+- if using a different module with different pinout and/or cpu type, the pin config and build parameters must be adjusted
 - purchase link: <https://www.aliexpress.com/item/1005004960064227.html>
 - in the "reference" design, ESP32-C3 is soldered on the CLK/CS/DIN pins of display module, corresponding to GPIO 0/1/2 pins.
 - 8 pieces of 8x8 LED matrix displays driven by MAX7219 is used:
 
-- they can be made by soldering two 4-unit modules in chain, or just use one 1x8 ready made module.
+- they can be made by soldering two 4-unit modules in chain, or just use one 1x8 readymade module.
 - search for "MAX7219 8x8 dot matrix module" and use either two 4-unit modules or one 8-unit module.
 - Examples: <https://www.aliexpress.com/item/1005006222492232.html>
 
