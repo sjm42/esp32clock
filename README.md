@@ -8,7 +8,7 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - runtime configuration including WiFi credentials is stored on flash, serialized and with crc32 checksum
 - static ipv4 configuration is supported
 - language can be set to Eng/Fin and it affects weekday and month abbreviations on screen
-- all known timezones are supported
+- all "known" timezones are supported
 - HTTP JSON API is provided for reading and saving config, and sending instant messages
 - supported timezones can be listed with an API call
 - MQTT is supported for getting (outdoors) temperature reading and for IM
@@ -80,7 +80,7 @@ http://10.6.66.183/conf -d \
 List supported timezones (the whole list is 500+ lines!):
 
 ```text
-curl -so- http://10.28.5.182/tz | grep Europe
+curl -so- http://10.6.66.183/tz | grep Europe
 Europe/Amsterdam
 Europe/Andorra
 Europe/Astrakhan
@@ -90,60 +90,6 @@ Europe/Belgrade
 Europe/Berlin
 Europe/Bratislava
 Europe/Brussels
-Europe/Bucharest
-Europe/Budapest
-Europe/Busingen
-Europe/Chisinau
-Europe/Copenhagen
-Europe/Dublin
-Europe/Gibraltar
-Europe/Guernsey
-Europe/Helsinki
-Europe/Isle_of_Man
-Europe/Istanbul
-Europe/Jersey
-Europe/Kaliningrad
-Europe/Kiev
-Europe/Kirov
-Europe/Kyiv
-Europe/Lisbon
-Europe/Ljubljana
-Europe/London
-Europe/Luxembourg
-Europe/Madrid
-Europe/Malta
-Europe/Mariehamn
-Europe/Minsk
-Europe/Monaco
-Europe/Moscow
-Europe/Nicosia
-Europe/Oslo
-Europe/Paris
-Europe/Podgorica
-Europe/Prague
-Europe/Riga
-Europe/Rome
-Europe/Samara
-Europe/San_Marino
-Europe/Sarajevo
-Europe/Saratov
-Europe/Simferopol
-Europe/Skopje
-Europe/Sofia
-Europe/Stockholm
-Europe/Tallinn
-Europe/Tirane
-Europe/Tiraspol
-Europe/Ulyanovsk
-Europe/Uzhgorod
-Europe/Vaduz
-Europe/Vatican
-Europe/Vienna
-Europe/Vilnius
-Europe/Volgograd
-Europe/Warsaw
-Europe/Zagreb
-Europe/Zaporozhye
-Europe/Zurich
+... blah blah etc.
 
 ```
