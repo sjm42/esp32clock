@@ -133,7 +133,8 @@ pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> (Sta
         info!("#{c} send_msg()");
     }
 
-    let mut tz_s = String::with_capacity(1024);
+    // yes, it's almost 10 KiB so alloc it already
+    let mut tz_s = String::with_capacity(10240);
     for tz in TZ_VARIANTS {
         tz_s.push_str(&format!("{tz}\n"));
     }
