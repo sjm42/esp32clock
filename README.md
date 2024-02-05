@@ -1,6 +1,6 @@
 # esp32clock
 
-Make a nice clock with ESP32 and MAX7219 8x8x4 led matrix displays
+Make a nice clock with ESP32 and MAX7219 8x8 led matrix displays
 
 ## Features
 
@@ -12,6 +12,7 @@ Make a nice clock with ESP32 and MAX7219 8x8x4 led matrix displays
 - HTTP JSON API is provided for reading and saving config, and sending instant messages
 - supported timezones can be listed with an API call
 - MQTT is supported for getting (outdoors) temperature reading and for IM
+- date and temperature displays are animated :grin:
 
 ## Hardware
 
