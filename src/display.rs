@@ -35,7 +35,7 @@ impl<'a> MyDisplay {
         Self::new(true)
     }
 
-    pub fn print<S>(&mut self, s: S)
+    pub fn print<S>(&mut self, s: S, add_dots: bool)
     where
         S: AsRef<str>,
     {
@@ -57,6 +57,13 @@ impl<'a> MyDisplay {
             (0..8).for_each(|r| {
                 self.fbuf[d][r] = FONT[offset + r];
             })
+        }
+        if add_dots {
+            self.fbuf[3][2] |= 0b00000001;
+            self.fbuf[3][4] |= 0b00000001;
+
+            self.fbuf[5][2] |= 0b00000001;
+            self.fbuf[5][4] |= 0b00000001;
         }
     }
 
@@ -236,7 +243,7 @@ impl<'a> MyDisplay {
             self.show(led_mat);
             sleep(Duration::from_millis(200)).await;
 
-            self.print(v);
+            self.print(v, false);
             self.show(led_mat);
             sleep(Duration::from_millis(200)).await;
         }

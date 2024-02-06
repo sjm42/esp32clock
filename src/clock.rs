@@ -40,7 +40,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         if *state.wifi_up.read().await {
             break;
         }
-        disp.print(&format!("WiFi ({})", SPIN[cnt % 4]));
+        disp.print(&format!("WiFi ({})", SPIN[cnt % 4]), false);
         disp.show(&mut led_mat);
 
         cnt += 1;
@@ -73,6 +73,8 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
     // finally, move to the main clock display loop
 
+    let mut last_sec = 0;
+    let mut dot_c = 0u8;
     let mut time_vscroll = Some(true);
     loop {
         if time_vscroll.is_none() {
@@ -89,15 +91,29 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
         }
 
         let local = Utc::now().with_timezone(tz);
+
+        let wday_index = local.weekday() as usize;
+        let wday_s = match lang {
+            MyLang::Eng => WEEKDAY_EN[wday_index],
+            MyLang::Fin => WEEKDAY_FI[wday_index],
+        };
         let hour = local.hour();
         let min = local.minute();
         let sec = local.second();
-        let ts = local.format(" %H%M%S ").to_string();
+
+        if sec != last_sec {
+            dot_c = 0;
+            last_sec = sec;
+        } else {
+            dot_c += 1;
+        }
 
         // Right after 04:42 local time, we are resetting
         if hour == 4 && min == 42 && (0..10).contains(&sec) {
             *state.reset.write().await = true;
         }
+
+        let ts = format!("{wday_s}{hour:02}{min:02}{sec:02}");
 
         if let Some(dir) = time_vscroll {
             let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
@@ -107,7 +123,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
             Box::pin(disp.vscroll(DEFAULT_VSCROLLD, dir, &mut led_mat, &ts)).await;
         } else {
-            disp.print(&ts);
+            disp.print(&ts, dot_c < 5);
             disp.show(&mut led_mat);
         }
 
@@ -115,27 +131,18 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             11 | 41 => {
                 // show date
 
-                let wday_s = match lang {
-                    MyLang::Eng => WEEKDAY_EN[local.weekday() as usize],
-                    MyLang::Fin => WEEKDAY_FI[local.weekday() as usize],
-                };
+                let mon_index = local.month0() as usize;
                 let mon_s = match lang {
-                    MyLang::Eng => MONTH_EN[local.month0() as usize],
-                    MyLang::Fin => MONTH_FI[local.month0() as usize],
+                    MyLang::Eng => MONTH_EN[mon_index],
+                    MyLang::Fin => MONTH_FI[mon_index],
                 };
                 let day = local.day();
-                let year = local.year();
+                let year = local.year() - 2000;
 
-                let date_s1 = format!(" {wday_s} {day}. ");
-                let date_s2 = format!("{mon_s} {year:04}");
+                let date_s = format!("{day:>2} {mon_s}{year:02}");
 
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s)).await;
                 sleep(Duration::from_millis(1500)).await;
-
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
-                sleep(Duration::from_millis(1500)).await;
-
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
 
                 Some(false)
             }
