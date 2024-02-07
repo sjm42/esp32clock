@@ -10,6 +10,7 @@ use tokio::time::{sleep, Duration};
 
 const DEFAULT_VSCROLLD: u8 = 20;
 
+#[allow(unused_variables)]
 pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
     // set up SPI bus and MAX7219 driver
 
@@ -113,8 +114,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             *state.reset.write().await = true;
         }
 
-        let ts = format!("{wday_s}{hour:02}{min:02}{sec:02}");
-
+        let ts = format!("{hour:02}{min:02}:{sec:02} ");
         if let Some(dir) = time_vscroll {
             let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
             (0..8).for_each(|i| {
@@ -123,7 +123,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
             Box::pin(disp.vscroll(DEFAULT_VSCROLLD, dir, &mut led_mat, &ts)).await;
         } else {
-            disp.print(&ts, dot_c < 5);
+            disp.print(&ts, false);
             disp.show(&mut led_mat);
         }
 
@@ -139,11 +139,16 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
                 let day = local.day();
                 let year = local.year() - 2000;
 
-                let date_s = format!("{day:>2} {mon_s}{year:02}");
+                let date_s1 = format!("{wday_s} {day}  ");
+                let date_s2 = format!("{mon_s} {year:02}  ");
 
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s)).await;
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
                 sleep(Duration::from_millis(1500)).await;
 
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
+                sleep(Duration::from_millis(1500)).await;
+
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
                 Some(false)
             }
 
@@ -154,7 +159,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
                 // don't show temperature if it was not updated ever, or more than 1 hour ago
                 if t > -1000.0 && *state.temp_t.read().await > local.timestamp() - 3600 {
-                    let temp_s = format!(" {t:+.1}°C");
+                    let temp_s = format!("{t:+.1}°C");
                     Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
                     sleep(Duration::from_millis(1500)).await;
 

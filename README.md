@@ -5,13 +5,13 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 ## Features
 
 - while source code has default WiFi credentials, they can be overridden with env variables
-- runtime configuration including WiFi credentials is stored on flash, serialized and with crc32 checksum
+- runtime configuration including WiFi credentials is stored on flash, serialized with crc32 checksum
 - static ipv4 configuration is supported
 - language can be set to Eng/Fin and it affects weekday and month abbreviations on screen
-- all "known" timezones are supported
+- all IANA timezones are supported
 - HTTP JSON API is provided for reading and saving config, and sending instant messages
-- supported timezones can be listed with an API call
-- MQTT is supported for getting (outdoors) temperature reading and for IM
+- supported timezones can also be listed with an API call
+- MQTT is supported for getting (outdoors) temperature and for IM
 - date and temperature displays are animated :grin:
 
 ## Hardware

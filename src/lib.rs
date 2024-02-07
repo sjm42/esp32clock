@@ -17,7 +17,7 @@ pub struct MyMessage {
 
 pub const SPIN: [char; 4] = ['|', '/', '-', '\\'];
 
-pub const WEEKDAY_EN: [&str; 7] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+pub const WEEKDAY_EN: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 pub const WEEKDAY_FI: [&str; 7] = ["Ma", "Ti", "Ke", "To", "Pe", "La", "Su"];
 
 #[rustfmt::skip]
@@ -28,8 +28,8 @@ pub const MONTH_EN: [&str; 12] = [
 
 #[rustfmt::skip]
 pub const MONTH_FI: [&str; 12] = [
-    "Tam", "Hel", "Maa", "Huh", "Tou", "Kes",
-    "Hei", "Elo", "Syy", "Lok", "Mar", "Jou",
+    "Tammi", "Helmi", "Maals", "Huhti", "Touko", "Kesä",
+    "Heinä", "Elo", "Syys", "Loka", "Marrs", "Joulu",
 ];
 
 mod config;
