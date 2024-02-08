@@ -75,13 +75,9 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     // finally, move to the main clock display loop
 
     let mut last_sec = 0;
-    let mut dot_c = 0u8;
+    let mut dsec = 0u8;
     let mut time_vscroll = Some(true);
     loop {
-        if time_vscroll.is_none() {
-            sleep(Duration::from_millis(100)).await;
-        }
-
         {
             // is reset requested?
             let mut reset = state.reset.write().await;
@@ -91,30 +87,33 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             }
         }
 
-        let local = Utc::now().with_timezone(tz);
+        if time_vscroll.is_none() {
+            sleep(Duration::from_millis(100)).await;
+        }
 
+        let local = Utc::now().with_timezone(tz);
+        let sec = local.second();
+        if sec != last_sec {
+            dsec = 0;
+            last_sec = sec;
+        } else {
+            dsec += 1;
+        }
+
+        let min = local.minute();
+        let hour = local.hour();
         let wday_index = local.weekday() as usize;
         let wday_s = match lang {
             MyLang::Eng => WEEKDAY_EN[wday_index],
             MyLang::Fin => WEEKDAY_FI[wday_index],
         };
-        let hour = local.hour();
-        let min = local.minute();
-        let sec = local.second();
-
-        if sec != last_sec {
-            dot_c = 0;
-            last_sec = sec;
-        } else {
-            dot_c += 1;
-        }
 
         // Right after 04:42 local time, we are resetting
         if hour == 4 && min == 42 && (0..10).contains(&sec) {
             *state.reset.write().await = true;
         }
 
-        let ts = format!("{hour:02}{min:02}:{sec:02} ");
+        let ts = format!("{hour:02}{min:02}:{sec:02}");
         if let Some(dir) = time_vscroll {
             let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
             (0..8).for_each(|i| {
