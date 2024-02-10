@@ -59,11 +59,21 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
     Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
 
     // start up NTP
+    let ntp = sntp::EspSntp::new_default()?;
+    cnt = 0;
+    loop {
+        if Utc::now().year() > 2020 && ntp.get_sync_status() == sntp::SyncStatus::Completed {
+            // we probably have NTP time by now...
+            break;
+        }
 
-    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "NTP.....")).await;
-    sleep(Duration::from_millis(500)).await;
+        disp.print(&format!("NTP..({})", SPIN[cnt % 4]), false);
+        disp.show(&mut led_mat);
 
-    let _ntp = sntp::EspSntp::new_default()?;
+        cnt += 1;
+        sleep(Duration::from_millis(200)).await;
+    }
+
     Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
     sleep(Duration::from_millis(500)).await;
 
@@ -152,17 +162,26 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
             }
 
             21 | 51 => {
-                // show temperature
+                // show temperature?
 
                 let t = *state.temp.read().await;
+                if t > NO_TEMP && state.config.read().await.enable_mqtt {
+                    if *state.temp_t.read().await < local.timestamp() - 3600 {
+                        // Well, MQTT is enabled, we have had earlier temp reading and now it's expired.
+                        // Thus, it's better to reboot because we have some kind of a network problem.
 
-                // don't show temperature if it was not updated ever, or more than 1 hour ago
-                if t > -1000.0 && *state.temp_t.read().await > local.timestamp() - 3600 {
-                    let temp_s = format!("{t:+.1}°C");
-                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
-                    sleep(Duration::from_millis(1500)).await;
+                        *state.reset.write().await = true;
+                        None
+                    } else {
+                        // OK we have the temp reading, show it.
 
-                    Some(true)
+                        let temp_s = format!("{t:+.1}°C");
+                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s))
+                            .await;
+                        sleep(Duration::from_millis(1500)).await;
+
+                        Some(true)
+                    }
                 } else {
                     None
                 }

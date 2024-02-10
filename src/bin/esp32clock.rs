@@ -105,7 +105,7 @@ fn main() -> anyhow::Result<()> {
         wifi_up: RwLock::new(false),
         ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
         myid: RwLock::new("esp32clock".into()),
-        temp: RwLock::new(-1000.0),
+        temp: RwLock::new(NO_TEMP),
         temp_t: RwLock::new(0),
         msg: RwLock::new(None),
         tz: RwLock::new(tz),

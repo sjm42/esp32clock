@@ -1,7 +1,7 @@
 // mqtt.rs
 
 use anyhow::bail;
-use chrono::Utc;
+use chrono::*;
 use embedded_svc::mqtt::client::EventPayload;
 use esp_idf_svc::mqtt;
 use log::*;
@@ -20,7 +20,8 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     }
 
     loop {
-        if *state.wifi_up.read().await {
+        // we wait for WiFi and NTP to settle
+        if *state.wifi_up.read().await && Utc::now().year() > 2020 {
             break;
         }
         sleep(Duration::from_secs(1)).await;

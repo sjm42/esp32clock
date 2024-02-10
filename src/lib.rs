@@ -32,6 +32,8 @@ pub const MONTH_FI: [&str; 12] = [
     "Heinä", "Elo", "Syys", "Loka", "Marrs", "Joulu",
 ];
 
+pub const NO_TEMP: f32 = -1000.0;
+
 mod config;
 pub use config::*;
 
