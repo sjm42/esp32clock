@@ -146,10 +146,11 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
                     MyLang::Fin => MONTH_FI[mon_index],
                 };
                 let day = local.day();
-                let year = local.year() - 2000;
+                // let year = local.year() - 2000;
+                let year = local.year();
 
-                let date_s1 = format!("{wday_s} {day}  ");
-                let date_s2 = format!("{mon_s} {year:02}  ");
+                let date_s1 = format!("{wday_s} {day}. ");
+                let date_s2 = format!("{mon_s} {year}  ");
 
                 Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
                 sleep(Duration::from_millis(1500)).await;
