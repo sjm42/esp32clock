@@ -135,6 +135,7 @@ impl<'a> WifiLoop<'a> {
                 .as_str()
                 .try_into()
                 .unwrap(),
+            auth_method: AuthMethod,
             ..Default::default()
         }))?;
 
