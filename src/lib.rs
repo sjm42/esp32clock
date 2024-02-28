@@ -2,6 +2,7 @@
 #![warn(clippy::large_futures)]
 #![feature(round_char_boundary)]
 
+use log::*;
 pub use serde::Deserialize;
 pub use std::{pin::Pin, sync::Arc};
 

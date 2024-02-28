@@ -4,8 +4,6 @@ use anyhow::bail;
 use chrono::*;
 use embedded_svc::mqtt::client::EventPayload;
 use esp_idf_svc::mqtt;
-use log::*;
-use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
 use crate::*;

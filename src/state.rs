@@ -3,26 +3,29 @@
 use crate::*;
 
 use chrono_tz::Tz;
-use esp_idf_hal::{gpio::AnyOutputPin, spi::SPI2};
+use esp_idf_hal::{
+    gpio::{AnyInputPin, AnyOutputPin},
+    spi::SPI2,
+};
 use esp_idf_svc::nvs;
 use std::net::Ipv4Addr;
 use tokio::sync::RwLock;
 
-pub struct LedSpi {
+pub struct MyPins {
     pub spi: SPI2,
     pub sclk: AnyOutputPin,
     pub sdo: AnyOutputPin,
     pub cs: AnyOutputPin,
+    pub button: AnyInputPin,
 }
 
-// unsafe impl Send for LedSpi {}
-unsafe impl Sync for LedSpi {}
+unsafe impl Sync for MyPins {}
 
 pub struct MyState {
     pub config: RwLock<MyConfig>,
     pub cnt: RwLock<u64>,
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
-    pub spi: RwLock<Option<LedSpi>>,
+    pub pins: RwLock<Option<MyPins>>,
     pub wifi_up: RwLock<bool>,
     pub ip_addr: RwLock<Ipv4Addr>,
     pub myid: RwLock<String>,

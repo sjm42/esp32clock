@@ -1,10 +1,9 @@
 // apiserver.rs
 
-use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json, Router};
+use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json};
 pub use axum_macros::debug_handler;
 use chrono_tz::{Tz, TZ_VARIANTS};
-use log::*;
-use std::{net, net::SocketAddr, pin::Pin, sync::Arc};
+use std::{net, net::SocketAddr};
 use tokio::time::{sleep, Duration};
 // use tower_http::trace::TraceLayer;
 

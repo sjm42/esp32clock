@@ -9,7 +9,7 @@ use esp_idf_svc::{
 };
 use esp_idf_sys::{self as _, esp, esp_app_desc};
 use log::*;
-use std::{net, sync::Arc};
+use std::net;
 use tokio::sync::RwLock;
 
 use esp32clock::*;
@@ -90,6 +90,7 @@ fn main() -> anyhow::Result<()> {
     let sclk = pins.gpio0.downgrade_output();
     let cs = pins.gpio1.downgrade_output();
     let sdo = pins.gpio2.downgrade_output();
+    let button = pins.gpio9.downgrade_input();
 
     let wifidriver = WifiDriver::new(
         peripherals.modem,
@@ -101,7 +102,13 @@ fn main() -> anyhow::Result<()> {
         config: RwLock::new(config),
         cnt: RwLock::new(0),
         nvs: RwLock::new(nvs),
-        spi: RwLock::new(Some(LedSpi { spi, sclk, sdo, cs })),
+        pins: RwLock::new(Some(MyPins {
+            spi,
+            sclk,
+            sdo,
+            cs,
+            button,
+        })),
         wifi_up: RwLock::new(false),
         ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
         myid: RwLock::new("esp32clock".into()),

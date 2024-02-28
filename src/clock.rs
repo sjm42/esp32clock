@@ -3,27 +3,32 @@
 use crate::*;
 
 use chrono::*;
-use esp_idf_hal::{gpio::*, prelude::*, spi};
+use esp_idf_hal::{
+    gpio::{self, *},
+    prelude::*,
+    spi,
+};
 use esp_idf_svc::sntp;
 use max7219::MAX7219;
 use tokio::time::{sleep, Duration};
 
 const DEFAULT_VSCROLLD: u8 = 20;
+const CONFIG_RESET_COUNT: i32 = 9;
 
 #[allow(unused_variables)]
 pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
     // set up SPI bus and MAX7219 driver
 
-    let led_spi = state.spi.write().await.take().unwrap();
+    let pins = state.pins.write().await.take().unwrap();
     let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
-        led_spi.spi,
-        led_spi.sclk,
-        led_spi.sdo,
+        pins.spi,
+        pins.sclk,
+        pins.sdo,
         None::<AnyInputPin>,
         &spi::SpiDriverConfig::new(),
     )?;
     let spiconfig = spi::config::Config::new().baudrate(10.MHz().into());
-    let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(led_spi.cs), &spiconfig)?;
+    let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
     let mut led_mat = MAX7219::from_spi(8, spi_dev).unwrap();
 
     // set up led matrix display
@@ -84,10 +89,41 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
 
     // finally, move to the main clock display loop
 
+    let button = gpio::PinDriver::input(pins.button)?;
+    let mut reset_cnt = CONFIG_RESET_COUNT;
     let mut last_sec = 0;
     let mut dsec = 0u8;
     let mut time_vscroll = Some(true);
+
     loop {
+        if button.is_low() {
+            // button is pressed and kept down, countdown and factory reset if reach zero
+            let msg = format!("Reset? {reset_cnt}");
+            error!("{msg}");
+            disp.print(&msg, false);
+            disp.show(&mut led_mat);
+
+            if reset_cnt == 0 {
+                // okay do factory reset now
+                error!("Factory resetting...");
+                disp.print("Reset...", false);
+                disp.show(&mut led_mat);
+
+                let new_config = MyConfig::default();
+                new_config.to_nvs(&mut *state.nvs.write().await)?;
+                sleep(Duration::from_millis(2000)).await;
+                esp_idf_hal::reset::restart();
+            }
+            reset_cnt -= 1;
+            sleep(Duration::from_millis(500)).await;
+            continue;
+        }
+        reset_cnt = CONFIG_RESET_COUNT;
+
+        if time_vscroll.is_none() {
+            sleep(Duration::from_millis(100)).await;
+        }
+
         {
             // is reset requested?
             let mut reset = state.reset.write().await;
@@ -95,10 +131,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Resul
                 *reset = false;
                 esp_idf_hal::reset::restart();
             }
-        }
-
-        if time_vscroll.is_none() {
-            sleep(Duration::from_millis(100)).await;
         }
 
         let local = Utc::now().with_timezone(tz);

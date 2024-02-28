@@ -21,9 +21,6 @@ pub enum MyLang {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MyConfig {
-    // boot fail count
-    pub bfc: u8,
-
     pub port: u16,
 
     pub wifi_ssid: String,
@@ -45,8 +42,6 @@ pub struct MyConfig {
 impl Default for MyConfig {
     fn default() -> Self {
         Self {
-            bfc: 0,
-
             port: option_env!("API_PORT")
                 .unwrap_or("-")
                 .parse()
