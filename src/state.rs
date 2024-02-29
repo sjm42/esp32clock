@@ -9,7 +9,6 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::nvs;
 use std::net::Ipv4Addr;
-use tokio::sync::RwLock;
 
 pub struct MyPins {
     pub spi: SPI2,

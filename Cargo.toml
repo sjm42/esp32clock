@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "0.5.0"
+version = "0.5.2"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 
@@ -19,6 +19,7 @@ anyhow = "1"
 axum = { version = "0", features = ["http1", "json"] }
 axum-macros = "0"
 bit_reverse = "0"
+cc = "=1.0.83"
 chrono = "0"
 chrono-tz = "0"
 crc = "3"

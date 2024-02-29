@@ -4,15 +4,11 @@ use crate::*;
 
 use bit_reverse::LookupReverse;
 use encoding_rs::*;
-use esp_idf_hal::spi::*;
-use max7219::{connectors::SpiConnector, MAX7219};
 use std::borrow::Cow;
 use tokio::time::{sleep, Duration};
 
 const ELEMS: usize = 8;
 const MAX_TEXT_SIZE: usize = 256;
-
-type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, SpiDriver<'a>>>>;
 
 pub struct MyDisplay {
     pub fbuf: [[u8; 8]; ELEMS],

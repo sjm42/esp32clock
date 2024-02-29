@@ -2,9 +2,19 @@
 #![warn(clippy::large_futures)]
 #![feature(round_char_boundary)]
 
+use esp_idf_hal::spi::*;
+pub use esp_idf_hal::{
+    gpio::{self, *},
+    prelude::*,
+    spi,
+};
 use log::*;
+use max7219::{connectors::SpiConnector, MAX7219};
 pub use serde::Deserialize;
 pub use std::{pin::Pin, sync::Arc};
+use tokio::sync::RwLock;
+
+pub type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, SpiDriver<'a>>>>;
 
 #[derive(Debug, Deserialize)]
 pub struct Temperature {
