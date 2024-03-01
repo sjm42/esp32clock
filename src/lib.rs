@@ -37,6 +37,12 @@ pub const MONTH_EN: [&str; 12] = [
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+#[rustfmt::skip]
+pub const MONTH_FI: [&str; 12] = [
+    "Tam", "Hel", "Maa", "Huh", "Tou", "Kes",
+    "Hei", "Elo", "Syy", "Lok", "Mar", "Jou",
+];
+
 /*
 #[rustfmt::skip]
 pub const MONTH_FI: [&str; 12] = [
@@ -44,12 +50,6 @@ pub const MONTH_FI: [&str; 12] = [
     "Heinä", "Elo", "Syys", "Loka", "Marrs", "Joulu",
 ];
 */
-
-#[rustfmt::skip]
-pub const MONTH_FI: [&str; 12] = [
-    "Tam", "Hel", "Maa", "Huh", "Tou", "Kes",
-    "Hei", "Elo", "Syy", "Lok", "Mar", "Jou",
-];
 
 pub const NO_TEMP: f32 = -1000.0;
 
