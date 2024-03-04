@@ -45,7 +45,6 @@ Read the current runtime config with a GET request:
 ```text
 curl -so- http://10.6.66.183/conf |jq
 {
-  "bfc": 0,
   "port": 80,
   "wifi_ssid": "mywifi",
   "wifi_pass": "mypass",
@@ -66,7 +65,7 @@ Write back a modified config with a POST request:
 ```text
 curl -so- -H 'Content-Type: application/json' \
 http://10.6.66.183/conf -d \
-"{\"bfc\":0,\"port\":80,\
+"{\"port\":80,\
 \"wifi_ssid\":\"mywifi\",\"wifi_pass\":\"mypass\",\
 \"v4dhcp\":true,\"v4addr\":\"0.0.0.0\",\
 \"v4mask\":0,\"v4gw\":\"0.0.0.0\",\
