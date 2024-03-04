@@ -35,7 +35,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
                 url,
                 &mqtt::client::MqttClientConfiguration {
                     client_id: Some(&myid),
-                    keep_alive_interval: Some(Duration::from_secs(25)),
+                    keep_alive_interval: Some(Duration::from_secs(100)),
                     ..Default::default()
                 },
             ) {
