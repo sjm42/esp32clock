@@ -1,20 +1,28 @@
 // lib.rs
+
 #![warn(clippy::large_futures)]
 #![feature(round_char_boundary)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(dead_code)]
 
-use esp_idf_hal::spi::*;
 pub use esp_idf_hal::{
     gpio::{self, *},
     prelude::*,
     spi,
 };
-use log::*;
-use max7219::{connectors::SpiConnector, MAX7219};
+pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
+pub use log::*;
 pub use serde::Deserialize;
 pub use std::{pin::Pin, sync::Arc};
-use tokio::sync::RwLock;
+pub use tokio::sync::RwLock;
 
-pub type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, SpiDriver<'a>>>>;
+#[cfg(feature = "max7219")]
+use max7219::{connectors::SpiConnector, MAX7219};
+
+#[cfg(feature = "max7219")]
+pub type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, spi::SpiDriver<'a>>>>;
 
 #[derive(Debug, Deserialize)]
 pub struct Temperature {
@@ -76,5 +84,8 @@ pub use mqtt::*;
 
 mod wifi;
 pub use wifi::*;
+
+// mod ws2812;
+// pub use ws2812::*;
 
 // EOF

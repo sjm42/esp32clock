@@ -1,7 +1,16 @@
 // apiserver.rs
 
-use axum::{extract::State, http::StatusCode, response::Html, routing::*, Json};
+use askama::Template;
 pub use axum_macros::debug_handler;
+
+use axum::{
+    body::Body,
+    extract::State,
+    http::{header, Response, StatusCode},
+    response::{Html, IntoResponse},
+    routing::*,
+    Json,
+};
 use chrono_tz::{Tz, TZ_VARIANTS};
 use std::{net, net::SocketAddr};
 use tokio::time::{sleep, Duration};
@@ -21,14 +30,9 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
     let addr = listen.parse::<SocketAddr>()?;
 
     let app = Router::new()
-        .route(
-            "/",
-            get({
-                let index = "<HTML></HTML>".to_string();
-                move || async { Html(index) }
-            }),
-        )
-        .route("/conf", get(get_conf).post(set_conf))
+        .route("/", get(get_index))
+        .route("/favicon.ico", get(get_favicon))
+        .route("/conf", get(get_conf).post(set_conf).options(opt_conf))
         .route("/tz", get(list_timezones))
         .route("/msg", post(send_msg))
         .route("/reset_conf", get(reset_conf))
@@ -40,19 +44,69 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
     Ok(axum::serve(listener, app.into_make_service()).await?)
 }
 
-pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> (StatusCode, Json<MyConfig>) {
+pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} get_index()");
+    }
+
+    let index = match state.config.read().await.clone().render() {
+        Err(e) => {
+            let emsg = format!("Index template error: {e:?}\n");
+            error!("{emsg}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, emsg).into_response();
+        }
+        Ok(s) => s,
+    };
+    (StatusCode::OK, Html(index)).into_response()
+}
+
+pub async fn get_favicon(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} get_favicon()");
+    }
+    let favicon = include_bytes!("favicon.ico");
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "image/vnd.microsoft.icon")],
+        favicon.to_vec(),
+    )
+        .into_response()
+}
+
+pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
         info!("#{c} get_conf()");
     }
-    (StatusCode::OK, Json(state.config.read().await.clone()))
+    (StatusCode::OK, Json(state.config.read().await.clone())).into_response()
+}
+
+pub async fn opt_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} get_conf()");
+    }
+    (
+        StatusCode::OK,
+        [
+            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+            (header::ACCESS_CONTROL_ALLOW_METHODS, "get,post"),
+            (header::ACCESS_CONTROL_ALLOW_HEADERS, "content-type"),
+        ],
+    )
+        .into_response()
 }
 
 pub async fn set_conf(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(mut config): Json<MyConfig>,
-) -> (StatusCode, String) {
+) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
@@ -62,7 +116,7 @@ pub async fn set_conf(
     if config.v4mask > 30 {
         let emsg = "IPv4 mask error: bits must be between 0..30\n";
         error!("{emsg}");
-        return (StatusCode::INTERNAL_SERVER_ERROR, emsg.to_string());
+        return (StatusCode::INTERNAL_SERVER_ERROR, emsg.to_string()).into_response();
     }
 
     if config.v4dhcp {
@@ -76,14 +130,14 @@ pub async fn set_conf(
     if let Err(e) = tz_s.parse::<Tz>() {
         let emsg = format!("Cannot parse timezone {tz_s:?}: {e:?}\n");
         error!("{emsg}");
-        return (StatusCode::BAD_REQUEST, emsg);
+        return (StatusCode::BAD_REQUEST, emsg).into_response();
     }
 
     info!("Saving new config to nvs...");
     Box::pin(save_conf(state, config)).await
 }
 
-pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> (StatusCode, String) {
+pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
@@ -93,18 +147,18 @@ pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> (StatusC
     Box::pin(save_conf(state, MyConfig::default())).await
 }
 
-async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> (StatusCode, String) {
+async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Response<Body> {
     let mut nvs = state.nvs.write().await;
     match config.to_nvs(&mut nvs) {
         Ok(_) => {
             info!("Config saved to nvs. Resetting soon...");
             *state.reset.write().await = true;
-            (StatusCode::OK, "OK\n".to_string())
+            (StatusCode::OK, "OK\n".to_string()).into_response()
         }
         Err(e) => {
             let emsg = format!("Nvs write error: {e:?}\n");
             error!("{emsg}");
-            (StatusCode::INTERNAL_SERVER_ERROR, emsg)
+            (StatusCode::INTERNAL_SERVER_ERROR, emsg).into_response()
         }
     }
 }
@@ -112,7 +166,7 @@ async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> (StatusCo
 pub async fn send_msg(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(message): Json<MyMessage>,
-) -> (StatusCode, String) {
+) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
@@ -122,10 +176,10 @@ pub async fn send_msg(
     let msg = message.msg;
     info!("Got msg: {msg}");
     *state.msg.write().await = Some(msg);
-    (StatusCode::OK, "OK\n".to_string())
+    (StatusCode::OK, "OK\n".to_string()).into_response()
 }
 
-pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> (StatusCode, String) {
+pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
@@ -137,7 +191,7 @@ pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> (Sta
     for tz in TZ_VARIANTS {
         tz_s.push_str(&format!("{tz}\n"));
     }
-    (StatusCode::OK, tz_s)
+    (StatusCode::OK, tz_s).into_response()
 }
 
 // EOF

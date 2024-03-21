@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>ESP32 clock</title>
+</head>
+
+<body>
+  <h1>ESP32 clock</h1>
+
+  <h2>Settings</h2>
+  <form action="/conf" method="POST" name="esp32cfg">
+    <table>
+      <tr>
+        <th><label for="port">Port (1-65535):</label></th>
+        <th><input type="text" name="port" value="{{port}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="wifi_ssid">WiFi SSID:</label></th>
+        <th><input type="text" name="wifi_ssid" value="{{wifi_ssid}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="wifi_pass">WiFi password:</label></th>
+        <th><input type="text" name="wifi_pass" value="{{wifi_pass}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="v4dhcp">DHCP enabled:</label></th>
+        <th><input type="checkbox" name="v4dhcp" {% if v4dhcp %}checked{% endif %}></th>
+      </tr>
+
+      <tr>
+        <th><label for="v4addr">IPv4 addr:</label></th>
+        <th><input type="text" name="v4addr" value="{{v4addr}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="v4mask">IPv4 mask (0-30):</label></th>
+        <th><input type="text" name="v4mask" value="{{v4mask}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="v4gw">IPv4 gateway:</label></th>
+        <th><input type="text" name="v4gw" value="{{v4gw}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="enable_mqtt">Enable MQTT:</label></th>
+        <th><input type="checkbox" name="enable_mqtt" {% if enable_mqtt %}checked{% endif %}></th>
+      </tr>
+
+      <tr>
+        <th><label for="mqtt_url">MQTT URL:</label></th>
+        <th><input type="text" name="mqtt_url" value="{{mqtt_url}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="temp_topic">Temperature topic:</label></th>
+        <th><input type="text" name="temp_topic" value="{{temp_topic}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="lang">Clock language (Eng/Fin):</label></th>
+        <th><input type="text" name="lang" value="{{lang}}"></th>
+      </tr>
+
+      <tr>
+        <th><label for="tz">Timezone:</label></th>
+        <th><input type="text" name="tz" value="{{tz}}"></th>
+      </tr>
+    </table>
+    <input value="Submit" type="submit">
+  </form>
+</body>
+
+</html>
+
+<script>
+  var postFormDataAsJson = async ({
+    url,
+    formData
+  }) => {
+    const formObj = Object.fromEntries(formData.entries());
+    formObj.port = parseInt(formObj.port);
+    formObj.v4dhcp = (formObj.v4dhcp === "on");
+    formObj.v4mask = parseInt(formObj.v4mask);
+    formObj.enable_mqtt = (formObj.enable_mqtt === "on");
+    const formDataJsonString = JSON.stringify(formObj);
+
+    const fetchOptions = {
+      method: "POST",
+      mode: 'cors',
+      keepalive: false,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: formDataJsonString,
+    };
+    const response = await fetch(url, fetchOptions);
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  var handleFormSubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const url = form.action;
+
+    try {
+      formData = new FormData(form);
+      const responseData = await postFormDataAsJson({
+        url,
+        formData
+      });
+      console.log({
+        responseData
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  document.querySelector("form[name='esp32cfg']")
+    .addEventListener("submit", handleFormSubmit)
+</script>

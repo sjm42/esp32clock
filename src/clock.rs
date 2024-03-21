@@ -3,11 +3,29 @@
 use crate::*;
 
 use chrono::*;
+use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
 use tokio::time::{sleep, Duration};
 
+#[cfg(feature = "ws2812")]
+use smart_leds::{
+    brightness, gamma,
+    hsv::{hsv2rgb, Hsv},
+    SmartLedsWrite, RGB8,
+};
+#[cfg(feature = "ws2812")]
+use ws2812::Ws2812;
+#[cfg(feature = "ws2812")]
+use ws2812_spi as ws2812;
+
 const DEFAULT_VSCROLLD: u8 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
+
+const N_LEDS: usize = 8 * 8;
+const INTENSITY_NIGHT: u8 = 1;
+const INTENSITY_DAY: u8 = 4;
+const INTENSITY_BOOST_N: u8 = 3;
+const INTENSITY_BOOST_D: u8 = 4;
 
 // #[allow(unused_variables)]
 pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
@@ -16,23 +34,85 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     let pins = state.pins.write().await.take().unwrap();
     let button = gpio::PinDriver::input(pins.button)?;
 
-    let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
-        pins.spi,
-        pins.sclk,
-        pins.sdo,
-        None::<AnyInputPin>,
-        &spi::SpiDriverConfig::new(),
-    )?;
-    let spiconfig = spi::config::Config::new().baudrate(10.MHz().into());
-    let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
-    let mut led_mat = MAX7219::from_spi(8, spi_dev).unwrap();
+    #[cfg(feature = "ws2812")]
+    let mut ws = {
+        let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
+            pins.spi,
+            pins.sclk,
+            pins.sdo,
+            None::<AnyInputPin>,
+            &spi::SpiDriverConfig::new(),
+        )?;
+        let spiconfig = spi::config::Config::new()
+            .baudrate(3500.kHz().into())
+            .data_mode(spi::config::Mode {
+                polarity: spi::config::Polarity::IdleLow,
+                phase: spi::config::Phase::CaptureOnFirstTransition,
+            })
+            .write_only(true);
+        let spi_dev = spi::SpiDeviceDriver::new(spi_driver, None::<AnyOutputPin>, &spiconfig)?;
+        Ws2812::new(spi_dev)
+    };
+
+    #[cfg(feature = "ws2812")]
+    let mut data = [RGB8::default(); N_LEDS];
+    #[cfg(feature = "ws2812")]
+    loop {
+        for j in 0..256 {
+            for i in 0..N_LEDS {
+                // rainbow cycle using HSV, where hue goes through all colors in circle
+                // value sets the brightness
+                let hsv = Hsv {
+                    hue: ((i * 3 + j) % 256) as u8,
+                    sat: 255,
+                    val: 100,
+                };
+
+                data[i] = hsv2rgb(hsv);
+            }
+            // before writing, apply gamma correction for nicer rainbow
+            ws.write(gamma(data.iter().cloned()))?;
+            sleep(Duration::from_millis(1000)).await;
+        }
+    }
+
+    #[cfg(feature = "max7219")]
+    let mut led_mat = {
+        let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
+            pins.spi,
+            pins.sclk,
+            pins.sdo,
+            None::<AnyInputPin>,
+            &spi::SpiDriverConfig::new(),
+        )?;
+        let spiconfig = spi::config::Config::new().baudrate(10.MHz().into());
+        let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
+        MAX7219::from_spi(8, spi_dev).unwrap()
+    };
 
     // set up led matrix display
 
-    led_mat.power_on().ok();
-    for i in 0..8 {
-        led_mat.clear_display(i).ok();
-        led_mat.set_intensity(i, 1).ok();
+    #[cfg(feature = "max7219")]
+    {
+        led_mat.power_on().ok();
+        for i in 0..8 {
+            let intensity = {
+                #[cfg(not(feature = "special"))]
+                {
+                    INTENSITY_NIGHT
+                }
+                #[cfg(feature = "special")]
+                {
+                    if i > 3 {
+                        INTENSITY_NIGHT + INTENSITY_BOOST_N
+                    } else {
+                        INTENSITY_NIGHT
+                    }
+                }
+            };
+            led_mat.clear_display(i).ok();
+            led_mat.set_intensity(i, intensity).ok();
+        }
     }
     let mut disp = MyDisplay::new_upside_down();
 
@@ -43,8 +123,10 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             break;
         }
         disp.print(&format!("WiFi ({})", SPIN[cnt % 4]), false);
+        #[cfg(feature = "max7219")]
         disp.show(&mut led_mat);
 
+        #[cfg(feature = "max7219")]
         if button.is_low() {
             Box::pin(reset_button(&mut state, &button, &mut led_mat)).await?;
         }
@@ -53,16 +135,21 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         sleep(Duration::from_millis(200)).await;
     }
 
-    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "Connect!")).await;
-    sleep(Duration::from_millis(1000)).await;
+    #[cfg(feature = "max7219")]
+    {
+        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "Connect!")).await;
+        sleep(Duration::from_millis(1000)).await;
+    }
 
     // show our IP address briefly
 
     let ip_info = format!("IP: {}", state.ip_addr.read().await);
-
-    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &ip_info)).await;
-    sleep(Duration::from_millis(500)).await;
-    Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
+    #[cfg(feature = "max7219")]
+    {
+        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &ip_info)).await;
+        sleep(Duration::from_millis(500)).await;
+        Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
+    }
 
     // start up NTP
     let ntp = sntp::EspSntp::new_default()?;
@@ -73,9 +160,13 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             break;
         }
 
-        disp.print(&format!("NTP..({})", SPIN[cnt % 4]), false);
-        disp.show(&mut led_mat);
+        #[cfg(feature = "max7219")]
+        {
+            disp.print(&format!("NTP..({})", SPIN[cnt % 4]), false);
+            disp.show(&mut led_mat);
+        }
 
+        #[cfg(feature = "max7219")]
         if button.is_low() {
             Box::pin(reset_button(&mut state, &button, &mut led_mat)).await?;
         }
@@ -84,8 +175,11 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         sleep(Duration::from_millis(200)).await;
     }
 
-    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
-    sleep(Duration::from_millis(500)).await;
+    #[cfg(feature = "max7219")]
+    {
+        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
+        sleep(Duration::from_millis(500)).await;
+    }
 
     // set up language and timezone
 
@@ -109,6 +203,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             }
         }
 
+        #[cfg(feature = "max7219")]
         if button.is_low() {
             Box::pin(reset_button(&mut state, &button, &mut led_mat)).await?;
         }
@@ -129,9 +224,37 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         }
 
         let ts = format!("{hour:02}{min:02}:{sec:02}");
+
+        #[cfg(feature = "max7219")]
         if let Some(dir) = time_vscroll {
-            let intensity = if (0..=7).contains(&hour) { 1 } else { 8 };
             for i in 0..8 {
+                let intensity = if (0..=7).contains(&hour) {
+                    #[cfg(not(feature = "special"))]
+                    {
+                        INTENSITY_NIGHT
+                    }
+                    #[cfg(feature = "special")]
+                    {
+                        if i > 3 {
+                            INTENSITY_NIGHT + INTENSITY_BOOST_N
+                        } else {
+                            INTENSITY_NIGHT
+                        }
+                    }
+                } else {
+                    #[cfg(not(feature = "special"))]
+                    {
+                        INTENSITY_DAY
+                    }
+                    #[cfg(feature = "special")]
+                    {
+                        if i > 3 {
+                            INTENSITY_DAY + INTENSITY_BOOST_D
+                        } else {
+                            INTENSITY_DAY
+                        }
+                    }
+                };
                 led_mat.set_intensity(i, intensity).ok();
             }
 
@@ -156,14 +279,16 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
                 let date_s1 = format!("{wday_s} {day}. ");
                 let date_s2 = format!("{mon_s} {year}  ");
+                #[cfg(feature = "max7219")]
+                {
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
+                    sleep(Duration::from_millis(1500)).await;
 
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
-                sleep(Duration::from_millis(1500)).await;
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
+                    sleep(Duration::from_millis(1500)).await;
 
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
-                sleep(Duration::from_millis(1500)).await;
-
-                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
+                }
                 Some(false)
             }
 
@@ -181,10 +306,13 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                     } else {
                         // OK we have the temp reading, show it.
 
-                        let temp_s = format!("{t:+.1}°C");
-                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s))
-                            .await;
-                        sleep(Duration::from_millis(1500)).await;
+                        #[cfg(feature = "max7219")]
+                        {
+                            let temp_s = format!("{t:+.1}°C");
+                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s))
+                                .await;
+                            sleep(Duration::from_millis(1500)).await;
+                        }
 
                         Some(true)
                     }
@@ -196,6 +324,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         };
 
         // Whoa, we have an incoming message to display!
+        #[cfg(feature = "max7219")]
         if let Some(msg) = state.msg.write().await.take() {
             Box::pin(disp.message(DEFAULT_VSCROLLD, &mut led_mat, &msg, &lang)).await;
             time_vscroll = Some(true);
@@ -203,10 +332,11 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     }
 }
 
+#[cfg(feature = "max7219")]
 async fn reset_button<'a, 'b>(
     state: &mut Arc<std::pin::Pin<Box<MyState>>>,
     button: &PinDriver<'a, AnyInputPin, Input>,
-    led_mat: &mut MAX7219<SpiConnector<SpiDeviceDriver<'b, SpiDriver<'b>>>>,
+    led_mat: &mut MAX7219<SpiConnector<SpiDeviceDriver<'b, spi::SpiDriver<'b>>>>,
 ) -> anyhow::Result<()> {
     let mut reset_cnt = CONFIG_RESET_COUNT;
     let mut disp = MyDisplay::new_upside_down();

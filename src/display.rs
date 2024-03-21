@@ -63,6 +63,7 @@ impl<'a> MyDisplay {
         }
     }
 
+    #[cfg(feature = "max7219")]
     pub fn show_buf(&self, buf: &[[u8; 8]], led_mat: &mut LedMatrix) {
         if buf.len() != ELEMS {
             // our slice size does not match!
@@ -93,10 +94,12 @@ impl<'a> MyDisplay {
         (0..ELEMS).for_each(|d| (0..8).for_each(|r| self.fbuf[d][r] = 0));
     }
 
+    #[cfg(feature = "max7219")]
     pub fn show(&self, led_mat: &mut LedMatrix) {
         self.show_buf(&self.fbuf, led_mat);
     }
 
+    #[cfg(feature = "max7219")]
     pub async fn marquee<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
@@ -153,6 +156,7 @@ impl<'a> MyDisplay {
         self.show(led_mat);
     }
 
+    #[cfg(feature = "max7219")]
     pub async fn vscroll<S>(&mut self, delay: u8, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
@@ -218,6 +222,7 @@ impl<'a> MyDisplay {
         }
     }
 
+    #[cfg(feature = "max7219")]
     pub async fn message<S>(
         &mut self,
         delay: u8,

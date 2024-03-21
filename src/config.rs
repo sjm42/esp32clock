@@ -1,11 +1,12 @@
 // config.rs
 
 use anyhow::bail;
+use askama::Template;
 use crc::{Crc, CRC_32_ISCSI};
 use esp_idf_svc::nvs;
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::net;
+use std::{fmt, net};
 
 const CONFIG_NAME: &str = "cfg";
 pub const NVS_BUF_SIZE: usize = 256;
@@ -19,7 +20,14 @@ pub enum MyLang {
     Fin,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+impl fmt::Display for MyLang {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Template)]
+#[template(path = "index.html")]
 pub struct MyConfig {
     pub port: u16,
 
@@ -59,7 +67,7 @@ impl Default for MyConfig {
             mqtt_url: "mqtt://127.0.0.1:1883".into(),
             temp_topic: "out_temperature".into(),
 
-            lang: MyLang::Fin,
+            lang: MyLang::Eng,
             tz: "Europe/Helsinki".into(),
         }
     }
