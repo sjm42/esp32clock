@@ -38,6 +38,8 @@ pub struct MyConfig {
     pub v4addr: net::Ipv4Addr,
     pub v4mask: u8,
     pub v4gw: net::Ipv4Addr,
+    pub dns1: net::Ipv4Addr,
+    pub dns2: net::Ipv4Addr,
 
     pub enable_mqtt: bool,
     pub mqtt_url: String,
@@ -62,6 +64,8 @@ impl Default for MyConfig {
             v4addr: net::Ipv4Addr::new(0, 0, 0, 0),
             v4mask: 0,
             v4gw: net::Ipv4Addr::new(0, 0, 0, 0),
+            dns1: net::Ipv4Addr::new(0, 0, 0, 0),
+            dns2: net::Ipv4Addr::new(0, 0, 0, 0),
 
             enable_mqtt: false,
             mqtt_url: "mqtt://127.0.0.1:1883".into(),

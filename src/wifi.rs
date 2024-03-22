@@ -37,8 +37,8 @@ impl<'a> WifiLoop<'a> {
                     gateway: self.state.config.read().await.v4gw,
                     mask: ipv4::Mask(self.state.config.read().await.v4mask),
                 },
-                dns: None,
-                secondary_dns: None,
+                dns: Some(self.state.config.read().await.dns1),
+                secondary_dns: Some(self.state.config.read().await.dns2),
             })
         };
         // info!("IP config: {ipv4_config:?}");
