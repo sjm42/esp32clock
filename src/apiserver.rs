@@ -124,6 +124,8 @@ pub async fn set_conf(
         config.v4addr = net::Ipv4Addr::new(0, 0, 0, 0);
         config.v4mask = 0;
         config.v4gw = net::Ipv4Addr::new(0, 0, 0, 0);
+        config.dns1 = net::Ipv4Addr::new(0, 0, 0, 0);
+        config.dns2 = net::Ipv4Addr::new(0, 0, 0, 0);
     }
 
     let tz_s = &config.tz;
