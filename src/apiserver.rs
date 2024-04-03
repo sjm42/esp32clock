@@ -32,7 +32,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
     let app = Router::new()
         .route("/", get(get_index))
         .route("/favicon.ico", get(get_favicon))
-        .route("/conf", get(get_conf).post(set_conf).options(opt_conf))
+        .route("/conf", get(get_conf).post(set_conf).options(options))
         .route("/tz", get(list_timezones))
         .route("/msg", post(send_msg))
         .route("/reset_conf", get(reset_conf))
@@ -86,11 +86,11 @@ pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<B
     (StatusCode::OK, Json(state.config.read().await.clone())).into_response()
 }
 
-pub async fn opt_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     {
         let mut c = state.cnt.write().await;
         *c += 1;
-        info!("#{c} get_conf()");
+        info!("#{c} options()");
     }
     (
         StatusCode::OK,

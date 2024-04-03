@@ -84,12 +84,25 @@
     </table>
     <input value="Submit" type="submit">
   </form>
+  <hr>
+  <h2>Send message</h2>
+  <form action="/msg" method="POST" name="esp32msg">
+    <table>
+      <tr>
+        <th><label for="port">Message:</label></th>
+        <th><input type="text" name="msg" value=""></th>
+      </tr>
+    </table>
+    <input value="Submit" type="submit">
+  </form>
+  <hr>
 </body>
 
 </html>
 
+
 <script>
-  var postFormDataAsJson = async ({
+  var postCfgDataAsJson = async ({
     url,
     formData
   }) => {
@@ -120,14 +133,14 @@
     return response.json();
   }
 
-  var handleFormSubmit = async (event) => {
+  var handleCfgSubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const url = form.action;
 
     try {
       formData = new FormData(form);
-      const responseData = await postFormDataAsJson({
+      const responseData = await postCfgDataAsJson({
         url,
         formData
       });
@@ -140,5 +153,55 @@
   }
 
   document.querySelector("form[name='esp32cfg']")
-    .addEventListener("submit", handleFormSubmit)
+    .addEventListener("submit", handleCfgSubmit)
+
+  var postMsgDataAsJson = async ({
+    url,
+    formData
+  }) => {
+    const formObj = Object.fromEntries(formData.entries());
+    const formDataJsonString = JSON.stringify(formObj);
+
+    const fetchOptions = {
+      method: "POST",
+      mode: 'cors',
+      keepalive: false,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: formDataJsonString,
+    };
+    const response = await fetch(url, fetchOptions);
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  var handleMsgSubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const url = form.action;
+
+    try {
+      formData = new FormData(form);
+      const responseData = await postMsgDataAsJson({
+        url,
+        formData
+      });
+      console.log({
+        responseData
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  document.querySelector("form[name='esp32msg']")
+    .addEventListener("submit", handleMsgSubmit)
+
 </script>
