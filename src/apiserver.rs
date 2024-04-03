@@ -14,7 +14,6 @@ use axum::{
 use chrono_tz::{Tz, TZ_VARIANTS};
 use std::{net, net::SocketAddr};
 use tokio::time::{sleep, Duration};
-// use tower_http::trace::TraceLayer;
 
 pub use crate::*;
 
@@ -33,8 +32,8 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
         .route("/", get(get_index))
         .route("/favicon.ico", get(get_favicon))
         .route("/conf", get(get_conf).post(set_conf).options(options))
+        .route("/msg", post(send_msg).options(options))
         .route("/tz", get(list_timezones))
-        .route("/msg", post(send_msg))
         .route("/reset_conf", get(reset_conf))
         .with_state(state);
     // .layer(TraceLayer::new_for_http());
@@ -42,6 +41,23 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     info!("API server listening to {listen}");
     Ok(axum::serve(listener, app.into_make_service()).await?)
+}
+
+pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    {
+        let mut c = state.cnt.write().await;
+        *c += 1;
+        info!("#{c} options()");
+    }
+    (
+        StatusCode::OK,
+        [
+            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+            (header::ACCESS_CONTROL_ALLOW_METHODS, "get,post"),
+            (header::ACCESS_CONTROL_ALLOW_HEADERS, "content-type"),
+        ],
+    )
+        .into_response()
 }
 
 pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
@@ -84,23 +100,6 @@ pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<B
         info!("#{c} get_conf()");
     }
     (StatusCode::OK, Json(state.config.read().await.clone())).into_response()
-}
-
-pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
-        *c += 1;
-        info!("#{c} options()");
-    }
-    (
-        StatusCode::OK,
-        [
-            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-            (header::ACCESS_CONTROL_ALLOW_METHODS, "get,post"),
-            (header::ACCESS_CONTROL_ALLOW_HEADERS, "content-type"),
-        ],
-    )
-        .into_response()
 }
 
 pub async fn set_conf(

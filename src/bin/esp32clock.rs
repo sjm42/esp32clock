@@ -10,7 +10,6 @@ use esp_idf_svc::{
 use esp_idf_sys::{self as _, esp, esp_app_desc};
 use log::*;
 use std::net;
-use tokio::sync::RwLock;
 
 use esp32clock::*;
 

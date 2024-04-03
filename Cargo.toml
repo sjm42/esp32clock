@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "1.2.2"
+version = "1.2.3"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 
@@ -59,11 +59,11 @@ anyhow = "1"
 
 
 [profile.release]
-debug = true
+debug = false
 opt-level = "z"
 codegen-units = 1
 lto = "fat"
-strip = false
+strip = true
 
 
 [profile.dev]
