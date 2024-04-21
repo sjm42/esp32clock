@@ -1,12 +1,14 @@
 // config.rs
 
+use std::{fmt, net};
+
 use anyhow::bail;
 use askama::Template;
 use crc::{Crc, CRC_32_ISCSI};
 use esp_idf_svc::nvs;
-use log::*;
 use serde::{Deserialize, Serialize};
-use std::{fmt, net};
+
+use crate::*;
 
 const CONFIG_NAME: &str = "cfg";
 pub const NVS_BUF_SIZE: usize = 256;

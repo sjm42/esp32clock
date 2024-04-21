@@ -1,6 +1,6 @@
 // state.rs
 
-use crate::*;
+use std::net::Ipv4Addr;
 
 use chrono_tz::Tz;
 use esp_idf_hal::{
@@ -8,7 +8,8 @@ use esp_idf_hal::{
     spi::SPI2,
 };
 use esp_idf_svc::nvs;
-use std::net::Ipv4Addr;
+
+use crate::*;
 
 pub struct MyPins {
     pub spi: SPI2,
@@ -34,5 +35,4 @@ pub struct MyState {
     pub tz: RwLock<Tz>,
     pub reset: RwLock<bool>,
 }
-
 // EOF

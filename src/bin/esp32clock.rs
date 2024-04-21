@@ -8,10 +8,10 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, timer::EspTaskTimerService, wifi::WifiDriver,
 };
 use esp_idf_sys::{self as _, esp, esp_app_desc};
-use log::*;
 use std::net;
 
 use esp32clock::*;
+
 
 esp_app_desc!();
 

@@ -1,11 +1,12 @@
 // display.rs
 
-use crate::*;
+use std::borrow::Cow;
 
 use bit_reverse::LookupReverse;
 use encoding_rs::*;
-use std::borrow::Cow;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
+
+use crate::*;
 
 const ELEMS: usize = 8;
 const MAX_TEXT_SIZE: usize = 256;
@@ -32,8 +33,8 @@ impl<'a> MyDisplay {
     }
 
     pub fn print<S>(&mut self, s: S, add_dots: bool)
-    where
-        S: AsRef<str>,
+        where
+            S: AsRef<str>,
     {
         let c_count = s.as_ref().chars().count();
         let msg = if c_count <= ELEMS {
@@ -101,8 +102,8 @@ impl<'a> MyDisplay {
 
     #[cfg(feature = "max7219")]
     pub async fn marquee<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
-    where
-        S: AsRef<str>,
+        where
+            S: AsRef<str>,
     {
         let delay = std::cmp::max(1, delay as u64);
 
@@ -158,8 +159,8 @@ impl<'a> MyDisplay {
 
     #[cfg(feature = "max7219")]
     pub async fn vscroll<S>(&mut self, delay: u8, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
-    where
-        S: AsRef<str>,
+        where
+            S: AsRef<str>,
     {
         let delay = std::cmp::max(1, delay as u64);
 
@@ -255,6 +256,7 @@ impl<'a> MyDisplay {
         Box::pin(self.marquee(delay, led_mat, msg.as_ref())).await;
     }
 }
+
 impl Default for MyDisplay {
     fn default() -> Self {
         Self::new(false)

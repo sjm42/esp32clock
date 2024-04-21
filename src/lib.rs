@@ -7,19 +7,28 @@
 #![allow(unused_mut)]
 #![allow(dead_code)]
 
+pub use std::{pin::Pin, sync::Arc};
+
 pub use esp_idf_hal::{
     gpio::{self, *},
     prelude::*,
     spi,
 };
 pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
-pub use log::*;
-pub use serde::Deserialize;
-pub use std::{pin::Pin, sync::Arc};
-pub use tokio::sync::RwLock;
-
 #[cfg(feature = "max7219")]
 use max7219::{connectors::SpiConnector, MAX7219};
+pub use serde::Deserialize;
+pub use tokio::sync::RwLock;
+pub use tracing::*;
+
+pub use apiserver::*;
+pub use clock::*;
+pub use config::*;
+pub use display::*;
+pub use font::*;
+pub use mqtt::*;
+pub use state::*;
+pub use wifi::*;
 
 #[cfg(feature = "max7219")]
 pub type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, spi::SpiDriver<'a>>>>;
@@ -62,28 +71,20 @@ pub const MONTH_FI: [&str; 12] = [
 pub const NO_TEMP: f32 = -1000.0;
 
 mod config;
-pub use config::*;
 
 mod state;
-pub use state::*;
 
 mod font;
-pub use font::*;
 
 mod apiserver;
-pub use apiserver::*;
 
 mod clock;
-pub use clock::*;
 
 mod display;
-pub use display::*;
 
 mod mqtt;
-pub use mqtt::*;
 
 mod wifi;
-pub use wifi::*;
 
 // mod ws2812;
 // pub use ws2812::*;
