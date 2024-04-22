@@ -122,6 +122,12 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         if *state.wifi_up.read().await {
             break;
         }
+
+        if cnt > 300 {
+            // we did not get connected in one minute, reset
+            esp_idf_hal::reset::restart();
+        }
+
         disp.print(&format!("WiFi ({})", SPIN[cnt % 4]), false);
         #[cfg(feature = "max7219")]
         disp.show(&mut led_mat);
@@ -158,6 +164,11 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         if Utc::now().year() > 2020 && ntp.get_sync_status() == sntp::SyncStatus::Completed {
             // we probably have NTP time by now...
             break;
+        }
+
+        if cnt > 300 {
+            // we did not get NTP time in one minute, reset
+            esp_idf_hal::reset::restart();
         }
 
         #[cfg(feature = "max7219")]
