@@ -12,7 +12,6 @@ use std::net;
 
 use esp32clock::*;
 
-
 esp_app_desc!();
 
 fn main() -> anyhow::Result<()> {
@@ -83,6 +82,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     let peripherals = Peripherals::take().unwrap();
+    let rmt = peripherals.rmt.channel0;
     let pins = peripherals.pins;
 
     let spi = peripherals.spi2;
@@ -102,6 +102,7 @@ fn main() -> anyhow::Result<()> {
         cnt: RwLock::new(0),
         nvs: RwLock::new(nvs),
         pins: RwLock::new(Some(MyPins {
+            rmt,
             spi,
             sclk,
             sdo,

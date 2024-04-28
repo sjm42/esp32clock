@@ -1,7 +1,5 @@
 // clock.rs
 
-use crate::*;
-
 use chrono::*;
 use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
@@ -14,9 +12,9 @@ use smart_leds::{
     SmartLedsWrite, RGB8,
 };
 #[cfg(feature = "ws2812")]
-use ws2812::Ws2812;
-#[cfg(feature = "ws2812")]
-use ws2812_spi as ws2812;
+use smart_leds_trait::SmartLedsWrite;
+
+use crate::*;
 
 const DEFAULT_VSCROLLD: u8 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
@@ -35,44 +33,38 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     let button = gpio::PinDriver::input(pins.button)?;
 
     #[cfg(feature = "ws2812")]
-    let mut ws = {
-        let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
-            pins.spi,
-            pins.sclk,
-            pins.sdo,
-            None::<AnyInputPin>,
-            &spi::SpiDriverConfig::new(),
-        )?;
-        let spiconfig = spi::config::Config::new()
-            .baudrate(3500.kHz().into())
-            .data_mode(spi::config::Mode {
-                polarity: spi::config::Polarity::IdleLow,
-                phase: spi::config::Phase::CaptureOnFirstTransition,
-            })
-            .write_only(true);
-        let spi_dev = spi::SpiDeviceDriver::new(spi_driver, None::<AnyOutputPin>, &spiconfig)?;
-        Ws2812::new(spi_dev)
-    };
+    {
+        let mut ws2812 = Ws2812Esp32Rmt::new(pins.rmt, pins.sdo)?;
 
-    #[cfg(feature = "ws2812")]
-    let mut data = [RGB8::default(); N_LEDS];
-    #[cfg(feature = "ws2812")]
-    loop {
-        for j in 0..256 {
-            for i in 0..N_LEDS {
-                // rainbow cycle using HSV, where hue goes through all colors in circle
-                // value sets the brightness
-                let hsv = Hsv {
-                    hue: ((i * 3 + j) % 256) as u8,
+        let mut data = [RGB8::default(); N_LEDS];
+
+        loop {
+            for j in 0..256 {
+                for i in 0..N_LEDS {
+                    // rainbow cycle using HSV, where hue goes through all colors in circle
+                    // value sets the brightness
+                    let hsv = Hsv {
+                        hue: ((i * 3 + j) % 256) as u8,
+                        sat: 255,
+                        val: 16,
+                    };
+
+                    data[i] = hsv2rgb(hsv);
+                }
+
+                // ws2812.write(gamma(data.iter().cloned()))?;
+
+                let pixels = std::iter::repeat(hsv2rgb(Hsv {
+                    hue: 128,
                     sat: 255,
-                    val: 100,
-                };
+                    val: 16,
+                }))
+                .take(25);
 
-                data[i] = hsv2rgb(hsv);
+                // ws2812.write(pixels)?;
+
+                sleep(Duration::from_millis(1000)).await;
             }
-            // before writing, apply gamma correction for nicer rainbow
-            ws.write(gamma(data.iter().cloned()))?;
-            sleep(Duration::from_millis(1000)).await;
         }
     }
 

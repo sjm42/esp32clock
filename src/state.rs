@@ -5,6 +5,7 @@ use std::net::Ipv4Addr;
 use chrono_tz::Tz;
 use esp_idf_hal::{
     gpio::{AnyInputPin, AnyOutputPin},
+    rmt,
     spi::SPI2,
 };
 use esp_idf_svc::nvs;
@@ -12,6 +13,7 @@ use esp_idf_svc::nvs;
 use crate::*;
 
 pub struct MyPins {
+    pub rmt: rmt::CHANNEL0,
     pub spi: SPI2,
     pub sclk: AnyOutputPin,
     pub sdo: AnyOutputPin,
