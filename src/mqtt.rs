@@ -29,6 +29,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
         {
             let url = &state.config.read().await.mqtt_url;
             let myid = state.myid.read().await.clone();
+            // let myid = "asdfxyzzy".to_string();
             info!("MQTT conn: {url} [{myid}]");
 
             let (client, conn) = match mqtt::client::EspAsyncMqttClient::new(
@@ -45,13 +46,16 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
                     continue;
                 }
             };
+            info!("MQTT connected.");
+            sleep(Duration::from_secs(1)).await;
 
             let _ = tokio::try_join!(
-                Box::pin(subscribe(state.clone(), client)),
                 Box::pin(event_loop(state.clone(), conn)),
+                Box::pin(subscribe(state.clone(), client)),
             );
 
-            error!("MQTT error, retrying...");
+            error!("MQTT error, retrying after 5s...");
+            sleep(Duration::from_secs(5)).await;
         }
     }
 }
@@ -72,7 +76,7 @@ async fn subscribe(
             bail!(e);
         }
     }
-    info!("Subscribed.");
+    info!("MQTT all subscribed.");
 
     // we stay here looping slowly or the program will crash miserably, idk why.
     loop {

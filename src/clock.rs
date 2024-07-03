@@ -3,16 +3,15 @@
 use chrono::*;
 use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
-use tokio::time::{sleep, Duration};
-
 #[cfg(feature = "ws2812")]
 use smart_leds::{
     brightness, gamma,
-    hsv::{hsv2rgb, Hsv},
-    SmartLedsWrite, RGB8,
+    hsv::{Hsv, hsv2rgb},
+    RGB8, SmartLedsWrite,
 };
 #[cfg(feature = "ws2812")]
 use smart_leds_trait::SmartLedsWrite;
+use tokio::time::{Duration, sleep};
 
 use crate::*;
 
@@ -59,7 +58,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                     sat: 255,
                     val: 16,
                 }))
-                .take(25);
+                    .take(25);
 
                 // ws2812.write(pixels)?;
 
@@ -189,6 +188,16 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     let lang = state.config.read().await.lang.to_owned();
     let tz = state.tz.read().await.to_owned();
 
+    // Only determine local sunrise/sunset times once because we can rely
+    // on the fact that we are rebooting every night!
+
+    let (lat, lon) = (state.config.read().await.lat, state.config.read().await.lon);
+    let s_hemisphere = lat < 0.0;
+    let local = Utc::now().with_timezone(&tz);
+    let (sunrise, sunset) = sunrise::sunrise_sunset(lat as f64, lon as f64, local.year(), local.month(), local.day());
+    let sunrise_t = DateTime::from_timestamp(sunrise, 0).unwrap_or_default().with_timezone(&tz);
+    let sunset_t = DateTime::from_timestamp(sunset, 0).unwrap_or_default().with_timezone(&tz);
+
     // finally, move to the main clock display loop
 
     let mut time_vscroll = Some(true);
@@ -220,6 +229,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             MyLang::Eng => WEEKDAY_EN[wday_index],
             MyLang::Fin => WEEKDAY_FI[wday_index],
         };
+        let month = local.month();
 
         // Right after 04:42 local time, we are resetting
         if hour == 4 && min == 42 && (0..10).contains(&sec) {
@@ -230,21 +240,24 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
         #[cfg(feature = "max7219")]
         if let Some(dir) = time_vscroll {
-            for i in 0..8 {
-                let intensity = if (0..=7).contains(&hour) {
-                    #[cfg(not(feature = "special"))]
-                    {
-                        INTENSITY_NIGHT
-                    }
-                    #[cfg(feature = "special")]
-                    {
-                        if i > 3 {
-                            INTENSITY_NIGHT + INTENSITY_BOOST_N
-                        } else {
-                            INTENSITY_NIGHT
-                        }
+            // adjust display brightness for time of day
+
+            let daylight =
+                if sunrise == 0 || sunset == 0 {
+                    // special handling for areas above arctic circle or below antarctic circle
+                    match month {
+                        4..=9 => true ^ s_hemisphere,
+                        _ => false ^ s_hemisphere
                     }
                 } else {
+                    if local > sunrise_t && local < sunset_t {
+                        true
+                    } else { false }
+                };
+            info!("Daylight: {daylight}");
+
+            for i in 0..8 {
+                let intensity = if daylight {
                     #[cfg(not(feature = "special"))]
                     {
                         INTENSITY_DAY
@@ -255,6 +268,19 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                             INTENSITY_DAY + INTENSITY_BOOST_D
                         } else {
                             INTENSITY_DAY
+                        }
+                    }
+                } else {
+                    #[cfg(not(feature = "special"))]
+                    {
+                        INTENSITY_NIGHT
+                    }
+                    #[cfg(feature = "special")]
+                    {
+                        if i > 3 {
+                            INTENSITY_NIGHT + INTENSITY_BOOST_N
+                        } else {
+                            INTENSITY_NIGHT
                         }
                     }
                 };

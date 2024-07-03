@@ -70,9 +70,9 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
 
     let index = match state.config.read().await.clone().render() {
         Err(e) => {
-            let emsg = format!("Index template error: {e:?}\n");
-            error!("{emsg}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, emsg).into_response();
+            let err_msg = format!("Index template error: {e:?}\n");
+            error!("{err_msg}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, err_msg).into_response();
         }
         Ok(s) => s,
     };

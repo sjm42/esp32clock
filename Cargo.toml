@@ -2,10 +2,15 @@
 
 [package]
 name = "esp32clock"
-version = "1.2.6"
+version = "1.2.7"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
+resolver = "2"
 
+[[bin]]
+name = "esp32clock"
+harness = false     # do not use the built in cargo test harness -> resolve rust-analyzer errors
+# test = false
 
 [features]
 default = ["esp32c3", "max7219"]
@@ -16,11 +21,6 @@ max7219 = ["dep:max7219"]
 ws2812 = ["dep:smart-leds", "dep:smart-leds-trait"]
 special = []
 
-#[patch.crates-io]
-#embedded-svc = { git = "https://github.com/esp-rs/embedded-svc" }
-#esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal" }
-#esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys" }
-
 
 [dependencies]
 anyhow = "1"
@@ -28,8 +28,7 @@ askama = "0"
 axum = { version = "0", features = ["http1", "json"] }
 axum-macros = "0"
 bit_reverse = "0"
-cc = "=1.0.83"
-#cc = "1"
+cc = "1"
 chrono = "0"
 chrono-tz = "0"
 crc = "3"
@@ -38,7 +37,6 @@ embedded-svc = { version = "0", features = ["experimental"] }
 encoding_rs = "0"
 esp-idf-hal = "0"
 esp-idf-svc = { version = "0", features = ["alloc", "experimental"] }
-# esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", features = ["alloc","experimental"] }
 esp-idf-sys = { version = "0", features = ["binstart"] }
 futures = "0"
 heapless = "0"
@@ -47,6 +45,7 @@ panic-halt = "0"
 postcard = { version = "1", features = ["alloc", "use-crc"] }
 serde = "1"
 serde_json = "1"
+sunrise-next = "1"
 tokio = { version = "1", features = ["rt", "net", "io-util"] }
 tower-http = { version = "0" }
 tracing = "0"
@@ -64,7 +63,7 @@ anyhow = "1"
 
 [profile.release]
 debug = false
-opt-level = "z"
+opt-level = "s"
 codegen-units = 1
 lto = "fat"
 strip = true

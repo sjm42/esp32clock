@@ -72,14 +72,11 @@ fn main() -> anyhow::Result<()> {
 
     info!("Setting timezone...");
     let tz_s = &config.tz;
-    let tz = match tz_s.parse() {
-        Ok(tz) => tz,
-        Err(e) => {
-            error!("Cannot parse timezone {tz_s:?}: {e:?}");
-            error!("Defaulting to UTC.");
-            UTC
-        }
-    };
+    let tz = tz_s.parse().unwrap_or_else(|e| {
+        error!("Cannot parse timezone {tz_s:?}: {e:?}");
+        error!("Defaulting to UTC.");
+        UTC
+    });
 
     let peripherals = Peripherals::take().unwrap();
     let rmt = peripherals.rmt.channel0;
@@ -143,8 +140,6 @@ fn main() -> anyhow::Result<()> {
     info!("main() finished, reboot.");
     FreeRtos::delay_ms(3000);
     esp_idf_hal::reset::restart();
-
-    Ok(())
 }
 
 // EOF

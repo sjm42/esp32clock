@@ -29,7 +29,7 @@ impl fmt::Display for MyLang {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Template)]
-#[template(path = "index.html")]
+#[template(path = "index.html.ask", escape = "html")]
 pub struct MyConfig {
     pub port: u16,
 
@@ -49,6 +49,8 @@ pub struct MyConfig {
 
     pub lang: MyLang,
     pub tz: String,
+    pub lat: f32,
+    pub lon: f32,
 }
 
 impl Default for MyConfig {
@@ -75,6 +77,8 @@ impl Default for MyConfig {
 
             lang: MyLang::Eng,
             tz: "Europe/Helsinki".into(),
+            lat: 61.5, //
+            lon: 23.8, // Tampere
         }
     }
 }
