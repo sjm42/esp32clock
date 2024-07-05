@@ -3,15 +3,16 @@
 use chrono::*;
 use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
+use tokio::time::{sleep, Duration};
+
 #[cfg(feature = "ws2812")]
 use smart_leds::{
     brightness, gamma,
-    hsv::{Hsv, hsv2rgb},
-    RGB8, SmartLedsWrite,
+    hsv::{hsv2rgb, Hsv},
+    SmartLedsWrite, RGB8,
 };
 #[cfg(feature = "ws2812")]
 use smart_leds_trait::SmartLedsWrite;
-use tokio::time::{Duration, sleep};
 
 use crate::*;
 
@@ -58,7 +59,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                     sat: 255,
                     val: 16,
                 }))
-                    .take(25);
+                .take(25);
 
                 // ws2812.write(pixels)?;
 
@@ -194,9 +195,19 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     let (lat, lon) = (state.config.read().await.lat, state.config.read().await.lon);
     let s_hemisphere = lat < 0.0;
     let local = Utc::now().with_timezone(&tz);
-    let (sunrise, sunset) = sunrise::sunrise_sunset(lat as f64, lon as f64, local.year(), local.month(), local.day());
-    let sunrise_t = DateTime::from_timestamp(sunrise, 0).unwrap_or_default().with_timezone(&tz);
-    let sunset_t = DateTime::from_timestamp(sunset, 0).unwrap_or_default().with_timezone(&tz);
+    let (sunrise, sunset) = sunrise::sunrise_sunset(
+        lat as f64,
+        lon as f64,
+        local.year(),
+        local.month(),
+        local.day(),
+    );
+    let sunrise_t = DateTime::from_timestamp(sunrise, 0)
+        .unwrap_or_default()
+        .with_timezone(&tz);
+    let sunset_t = DateTime::from_timestamp(sunset, 0)
+        .unwrap_or_default()
+        .with_timezone(&tz);
 
     // finally, move to the main clock display loop
 
@@ -242,18 +253,15 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         if let Some(dir) = time_vscroll {
             // adjust display brightness for time of day
 
-            let daylight =
-                if sunrise == 0 || sunset == 0 {
-                    // special handling for areas above arctic circle or below antarctic circle
-                    match month {
-                        4..=9 => true ^ s_hemisphere,
-                        _ => false ^ s_hemisphere
-                    }
-                } else {
-                    if local > sunrise_t && local < sunset_t {
-                        true
-                    } else { false }
-                };
+            let daylight = if sunrise == 0 || sunset == 0 {
+                // special handling for areas above arctic circle or below antarctic circle
+                match month {
+                    4..=9 => true ^ s_hemisphere,
+                    _ => false ^ s_hemisphere,
+                }
+            } else {
+                local > sunrise_t && local < sunset_t
+            };
             info!("Daylight: {daylight}");
 
             for i in 0..8 {
@@ -327,8 +335,8 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                 let t = *state.temp.read().await;
                 if t > NO_TEMP && state.config.read().await.enable_mqtt {
                     if *state.temp_t.read().await < local.timestamp() - 3600 {
-                        // Well, MQTT is enabled, we have had earlier temp reading and now it's expired.
-                        // Thus, it's better to reboot because we have some kind of a network problem.
+                        // Well, MQTT is enabled, we have had earlier temp reading, and now it's expired.
+                        // Thus, it's better to reboot because we have some kind of network problem.
 
                         *state.reset.write().await = true;
                         None

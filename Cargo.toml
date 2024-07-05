@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "1.2.7"
+version = "1.2.8"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 resolver = "2"
@@ -28,7 +28,6 @@ askama = "0"
 axum = { version = "0", features = ["http1", "json"] }
 axum-macros = "0"
 bit_reverse = "0"
-cc = "1"
 chrono = "0"
 chrono-tz = "0"
 crc = "3"
@@ -38,10 +37,6 @@ encoding_rs = "0"
 esp-idf-hal = "0"
 esp-idf-svc = { version = "0", features = ["alloc", "experimental"] }
 esp-idf-sys = { version = "0", features = ["binstart"] }
-futures = "0"
-heapless = "0"
-mio = { version = "0", features = ["log"] }
-panic-halt = "0"
 postcard = { version = "1", features = ["alloc", "use-crc"] }
 serde = "1"
 serde_json = "1"
