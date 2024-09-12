@@ -9,10 +9,10 @@ use esp_idf_svc::{
     timer::{EspTimerService, Task},
     wifi::{AsyncWifi, EspWifi, WifiDriver},
 };
-use esp_idf_sys as _;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 use crate::*;
+
 
 pub struct WifiLoop<'a> {
     pub state: Arc<std::pin::Pin<Box<MyState>>>,

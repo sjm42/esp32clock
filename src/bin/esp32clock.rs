@@ -2,15 +2,17 @@
 
 #![warn(clippy::large_futures)]
 
+use std::net;
+
 use chrono_tz::Etc::UTC;
 use esp_idf_hal::{delay::FreeRtos, gpio::*, prelude::*};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, timer::EspTaskTimerService, wifi::WifiDriver,
 };
-use esp_idf_sys::{self as _, esp, esp_app_desc};
-use std::net;
+use esp_idf_sys::{esp, esp_app_desc};
 
 use esp32clock::*;
+
 
 esp_app_desc!();
 
@@ -96,7 +98,7 @@ fn main() -> anyhow::Result<()> {
 
     let state = Box::pin(MyState {
         config: RwLock::new(config),
-        cnt: RwLock::new(0),
+        api_cnt: RwLock::new(0),
         nvs: RwLock::new(nvs),
         pins: RwLock::new(Some(MyPins {
             rmt,

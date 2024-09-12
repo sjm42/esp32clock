@@ -12,6 +12,7 @@ use esp_idf_svc::nvs;
 
 use crate::*;
 
+
 pub struct MyPins {
     pub rmt: rmt::CHANNEL0,
     pub spi: SPI2,
@@ -25,7 +26,7 @@ unsafe impl Sync for MyPins {}
 
 pub struct MyState {
     pub config: RwLock<MyConfig>,
-    pub cnt: RwLock<u64>,
+    pub api_cnt: RwLock<u64>,
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
     pub pins: RwLock<Option<MyPins>>,
     pub wifi_up: RwLock<bool>,

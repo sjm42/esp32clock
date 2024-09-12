@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::*;
 
+
 const CONFIG_NAME: &str = "cfg";
 pub const NVS_BUF_SIZE: usize = 256;
 pub const BOOT_FAIL_MAX: u8 = 4;

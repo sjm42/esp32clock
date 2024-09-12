@@ -1,6 +1,5 @@
 // apiserver.rs
 
-
 use std::{net, net::SocketAddr};
 
 use askama::Template;
@@ -8,15 +7,16 @@ use axum::{
     body::Body,
     extract::State,
     http::{header, Response, StatusCode},
-    Json,
     response::{Html, IntoResponse},
     routing::*,
+    Json,
 };
 pub use axum_macros::debug_handler;
 use chrono_tz::{Tz, TZ_VARIANTS};
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 pub use crate::*;
+
 
 pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     loop {
@@ -32,9 +32,10 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
     let app = Router::new()
         .route("/", get(get_index))
         .route("/favicon.ico", get(get_favicon))
-        .route("/conf", get(get_conf).post(set_conf).options(options))
+        .route("/form.js", get(get_formjs))
         .route("/msg", post(send_msg).options(options))
         .route("/tz", get(list_timezones))
+        .route("/conf", get(get_conf).post(set_conf).options(options))
         .route("/reset_conf", get(reset_conf))
         .with_state(state);
     // .layer(TraceLayer::new_for_http());
@@ -45,11 +46,13 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
 }
 
 pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} options()");
-    }
+        *c
+    };
+    info!("#{cnt} options()");
+
     (
         StatusCode::OK,
         [
@@ -62,11 +65,12 @@ pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Bo
 }
 
 pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} get_index()");
-    }
+        *c
+    };
+    info!("#{cnt} get_index()");
 
     let index = match state.config.read().await.clone().render() {
         Err(e) => {
@@ -80,11 +84,13 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
 }
 
 pub async fn get_favicon(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} get_favicon()");
-    }
+        *c
+    };
+    info!("#{cnt} get_favicon()");
+
     let favicon = include_bytes!("favicon.ico");
     (
         StatusCode::OK,
@@ -94,12 +100,64 @@ pub async fn get_favicon(State(state): State<Arc<Pin<Box<MyState>>>>) -> Respons
         .into_response()
 }
 
-pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+pub async fn get_formjs(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} get_conf()");
+        *c
+    };
+    info!("#{cnt} get_formjs()");
+
+    let formjs = include_bytes!("form.js");
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/javascript")],
+        formjs.to_vec(),
+    )
+        .into_response()
+}
+
+pub async fn send_msg(
+    State(state): State<Arc<Pin<Box<MyState>>>>,
+    Json(message): Json<MyMessage>,
+) -> Response<Body> {
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
+        *c += 1;
+        *c
+    };
+    info!("#{cnt} send_msg()");
+
+    let msg = message.msg;
+    info!("Got msg: {msg}");
+    *state.msg.write().await = Some(msg);
+    (StatusCode::OK, "OK\n".to_string()).into_response()
+}
+
+pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
+        *c += 1;
+        *c
+    };
+    info!("#{cnt} send_msg()");
+
+    // yes, it's almost 10 KiB so alloc it already
+    let mut tz_s = String::with_capacity(10240);
+    for tz in TZ_VARIANTS {
+        tz_s.push_str(&format!("{tz}\n"));
     }
+    (StatusCode::OK, tz_s).into_response()
+}
+
+pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
+        *c += 1;
+        *c
+    };
+    info!("#{cnt} get_conf()");
+
     (StatusCode::OK, Json(state.config.read().await.clone())).into_response()
 }
 
@@ -107,11 +165,12 @@ pub async fn set_conf(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(mut config): Json<MyConfig>,
 ) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} set_conf()");
-    }
+        *c
+    };
+    info!("#{cnt} set_conf()");
 
     if config.v4mask > 30 {
         let emsg = "IPv4 mask error: bits must be between 0..30\n";
@@ -140,11 +199,13 @@ pub async fn set_conf(
 }
 
 pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
+    let cnt = {
+        let mut c = state.api_cnt.write().await;
         *c += 1;
-        info!("#{c} reset_conf()");
-    }
+        *c
+    };
+    info!("#{cnt} reset_conf()");
+
     info!("Saving  default config to nvs...");
     Box::pin(save_conf(state, MyConfig::default())).await
 }
@@ -164,36 +225,4 @@ async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Response<
         }
     }
 }
-
-pub async fn send_msg(
-    State(state): State<Arc<Pin<Box<MyState>>>>,
-    Json(message): Json<MyMessage>,
-) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
-        *c += 1;
-        info!("#{c} send_msg()");
-    }
-
-    let msg = message.msg;
-    info!("Got msg: {msg}");
-    *state.msg.write().await = Some(msg);
-    (StatusCode::OK, "OK\n".to_string()).into_response()
-}
-
-pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    {
-        let mut c = state.cnt.write().await;
-        *c += 1;
-        info!("#{c} send_msg()");
-    }
-
-    // yes, it's almost 10 KiB so alloc it already
-    let mut tz_s = String::with_capacity(10240);
-    for tz in TZ_VARIANTS {
-        tz_s.push_str(&format!("{tz}\n"));
-    }
-    (StatusCode::OK, tz_s).into_response()
-}
-
 // EOF

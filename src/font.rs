@@ -1,6 +1,5 @@
 // font.rs
 
-
 pub const N_FONT: usize = 2048;
 
 #[rustfmt::skip]

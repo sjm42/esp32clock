@@ -16,6 +16,7 @@ use smart_leds_trait::SmartLedsWrite;
 
 use crate::*;
 
+
 const DEFAULT_VSCROLLD: u8 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
 
@@ -59,7 +60,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                     sat: 255,
                     val: 16,
                 }))
-                .take(25);
+                    .take(25);
 
                 // ws2812.write(pixels)?;
 
@@ -120,7 +121,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             esp_idf_hal::reset::restart();
         }
 
-        disp.print(&format!("WiFi ({})", SPIN[cnt % 4]), false);
+        disp.print(format!("WiFi ({})", SPIN[cnt % 4]), false);
         #[cfg(feature = "max7219")]
         disp.show(&mut led_mat);
 
@@ -165,7 +166,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
         #[cfg(feature = "max7219")]
         {
-            disp.print(&format!("NTP..({})", SPIN[cnt % 4]), false);
+            disp.print(format!("NTP..({})", SPIN[cnt % 4]), false);
             disp.show(&mut led_mat);
         }
 

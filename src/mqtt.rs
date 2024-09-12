@@ -4,9 +4,10 @@ use anyhow::bail;
 use chrono::*;
 use embedded_svc::mqtt::client::EventPayload;
 use esp_idf_svc::mqtt;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 use crate::*;
+
 
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     if !state.config.read().await.enable_mqtt {
@@ -29,7 +30,6 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
         {
             let url = &state.config.read().await.mqtt_url;
             let myid = state.myid.read().await.clone();
-            // let myid = "asdfxyzzy".to_string();
             info!("MQTT conn: {url} [{myid}]");
 
             let (client, conn) = match mqtt::client::EspAsyncMqttClient::new(

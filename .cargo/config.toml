@@ -16,7 +16,6 @@ rustflags = [
     "default-linker-libraries",
 ]
 
-
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
 runner = "espflash flash --monitor"
@@ -27,12 +26,10 @@ rustflags = [
     "mio_unsupported_force_poll_poll",
 ]
 
-
 [unstable]
 build-std = ["std", "panic_abort"]
-
 
 [env]
 CRATE_CC_NO_DEFAULTS = "1"
 MCU = "esp32c3"
-ESP_IDF_VERSION = "v5.2.2"
+ESP_IDF_VERSION = "v5.3"
