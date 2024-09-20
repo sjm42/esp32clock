@@ -10,87 +10,37 @@
 <body>
 <h1>ESP32 clock</h1>
 <h2>Settings</h2>
+{% let myform = [
+                    ("text", "port", port.to_string(), "Port (1-65535)"),
+                    ("text", "wifi_ssid", wifi_ssid.to_string(), "WiFi SSID"),
+                    ("text", "wifi_pass", wifi_pass.to_string(), "WiFi password"),
+                    ("checkbox", "v4dhcp", v4dhcp.to_string(), "DHCP enabled"),
+                    ("text", "v4addr", v4addr.to_string(), "IPv4 address"),
+                    ("text", "v4mask", v4mask.to_string(), "IPv4 mask length (0-30)"),
+                    ("text", "v4gw", v4gw.to_string(), "IPv4 gateway"),
+                    ("text", "dns1", dns1.to_string(), "DNS 1"),
+                    ("text", "dns2", dns2.to_string(), "DNS 2"),
+                    ("checkbox", "mqtt_enable", mqtt_enable.to_string(), "MQTT enabled"),
+                    ("text", "mqtt_url", mqtt_url.to_string(), "MQTT URL"),
+                    ("text", "mqtt_topic", mqtt_topic.to_string(), "MQTT topic"),
+                    ("text", "lang", lang.to_string(), "Display language (Eng/Fin)"),
+                    ("text", "tz", tz.to_string(), "Timezone"),
+                    ("text", "lat", lat.to_string(), "Location, latitude"),
+                    ("text", "lon", lon.to_string(), "Location, longitude")
+                ] -%}
 <form action="/conf" method="POST" name="esp32cfg">
     <table>
-        <tr>
-            <th><label for="port">Port (1-65535):</label></th>
-            <th><input name="port" type="text" value="{{port}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="wifi_ssid">WiFi SSID:</label></th>
-            <th><input name="wifi_ssid" type="text" value="{{wifi_ssid}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="wifi_pass">WiFi password:</label></th>
-            <th><input name="wifi_pass" type="text" value="{{wifi_pass}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="v4dhcp">DHCP enabled:</label></th>
-            <th><input type="checkbox" name="v4dhcp" {% if v4dhcp %}checked{% endif %}></th>
-        </tr>
-
-        <tr>
-            <th><label for="v4addr">IPv4 addr:</label></th>
-            <th><input name="v4addr" type="text" value="{{v4addr}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="v4mask">IPv4 mask length (0-30):</label></th>
-            <th><input name="v4mask" type="text" value="{{v4mask}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="v4gw">IPv4 gateway:</label></th>
-            <th><input name="v4gw" type="text" value="{{v4gw}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="dns1">DNS 1:</label></th>
-            <th><input name="dns1" type="text" value="{{dns1}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="dns2">DNS 2:</label></th>
-            <th><input name="dns2" type="text" value="{{dns2}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="enable_mqtt">Enable MQTT:</label></th>
-            <th><input type="checkbox" name="enable_mqtt" {% if enable_mqtt %}checked{% endif %}></th>
-        </tr>
-
-        <tr>
-            <th><label for="mqtt_url">MQTT URL:</label></th>
-            <th><input name="mqtt_url" type="text" value="{{mqtt_url}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="temp_topic">Temperature topic:</label></th>
-            <th><input name="temp_topic" type="text" value="{{temp_topic}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="lang">Clock language (Eng/Fin):</label></th>
-            <th><input name="lang" type="text" value="{{lang}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="tz">Timezone:</label></th>
-            <th><input name="tz" type="text" value="{{tz}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="lat">Latitude:</label></th>
-            <th><input name="lat" type="text" value="{{lat}}"></th>
-        </tr>
-
-        <tr>
-            <th><label for="lon">Longitude:</label></th>
-            <th><input name="lon" type="text" value="{{lon}}"></th>
-        </tr>
+    {%- for (type, name, value, descr) in myform %}
+            <tr>
+    {%- if type == "checkbox" %}
+                <th><label for="{{name}}">{{descr}}:</label></th>
+                <th><input name="{{name}}" type="{{type}}"{% if value == "true" %} checked{% endif %}></th>
+    {%- else %}
+                <th><label for="{{name}}">{{descr}}:</label></th>
+                <th><input name="{{name}}" type="{{type}}" value="{{value}}"></th>
+    {%- endif %}
+            </tr>
+    {%- endfor %}
     </table>
     <input type="submit" value="Submit">
 </form>

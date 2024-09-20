@@ -5,7 +5,7 @@ var postCfgDataAsJson = async ({
     formObj.port = parseInt(formObj.port);
     formObj.v4dhcp = (formObj.v4dhcp === "on");
     formObj.v4mask = parseInt(formObj.v4mask);
-    formObj.enable_mqtt = (formObj.enable_mqtt === "on");
+    formObj.mqtt_enable = (formObj.mqtt_enable === "on");
     formObj.lat = parseFloat(formObj.lat);
     formObj.lon = parseFloat(formObj.lon);
     const formDataJsonString = JSON.stringify(formObj);

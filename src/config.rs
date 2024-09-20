@@ -44,9 +44,9 @@ pub struct MyConfig {
     pub dns1: net::Ipv4Addr,
     pub dns2: net::Ipv4Addr,
 
-    pub enable_mqtt: bool,
+    pub mqtt_enable: bool,
     pub mqtt_url: String,
-    pub temp_topic: String,
+    pub mqtt_topic: String,
 
     pub lang: MyLang,
     pub tz: String,
@@ -72,9 +72,9 @@ impl Default for MyConfig {
             dns1: net::Ipv4Addr::new(0, 0, 0, 0),
             dns2: net::Ipv4Addr::new(0, 0, 0, 0),
 
-            enable_mqtt: false,
+            mqtt_enable: false,
             mqtt_url: "mqtt://127.0.0.1:1883".into(),
-            temp_topic: "out_temperature".into(),
+            mqtt_topic: "out_temperature".into(),
 
             lang: MyLang::Eng,
             tz: "Europe/Helsinki".into(),

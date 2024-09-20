@@ -2,15 +2,17 @@
 
 [package]
 name = "esp32clock"
-version = "1.3.0"
+version = "1.3.1"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 resolver = "2"
+
 
 [[bin]]
 name = "esp32clock"
 harness = false     # do not use the built in cargo test harness -> resolve rust-analyzer errors
 # test = false
+
 
 [features]
 default = ["esp32c3", "max7219"]

@@ -334,7 +334,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                 // show temperature?
 
                 let t = *state.temp.read().await;
-                if t > NO_TEMP && state.config.read().await.enable_mqtt {
+                if t > NO_TEMP && state.config.read().await.mqtt_enable {
                     if *state.temp_t.read().await < local.timestamp() - 3600 {
                         // Well, MQTT is enabled, we have had earlier temp reading, and now it's expired.
                         // Thus, it's better to reboot because we have some kind of network problem.

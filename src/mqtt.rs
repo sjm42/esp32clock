@@ -10,7 +10,7 @@ use crate::*;
 
 
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
-    if !state.config.read().await.enable_mqtt {
+    if !state.config.read().await.mqtt_enable {
         info!("Temp is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
         loop {
@@ -68,7 +68,7 @@ async fn subscribe(
     for t in [
         "esp32clock-all",
         &state.myid.read().await,
-        &state.config.read().await.temp_topic,
+        &state.config.read().await.mqtt_topic,
     ] {
         info!("Subscribe: {t}");
         if let Err(e) = client.subscribe(t, mqtt::client::QoS::AtLeastOnce).await {
@@ -88,7 +88,7 @@ async fn event_loop(
     state: Arc<Pin<Box<MyState>>>,
     mut conn: mqtt::client::EspAsyncMqttConnection,
 ) -> anyhow::Result<()> {
-    let temp_topic = &state.config.read().await.temp_topic;
+    let temp_topic = &state.config.read().await.mqtt_topic;
 
     while let Ok(notification) = Box::pin(conn.next()).await {
         debug!("MQTT recvd: {:?}", notification.payload());
