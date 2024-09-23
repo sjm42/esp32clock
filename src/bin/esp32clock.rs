@@ -2,14 +2,14 @@
 
 #![warn(clippy::large_futures)]
 
-use std::net;
+
+use std::time::Duration;
 
 use chrono_tz::Etc::UTC;
-use esp_idf_hal::{delay::FreeRtos, gpio::*, prelude::*};
-use esp_idf_svc::{
-    eventloop::EspSystemEventLoop, nvs, timer::EspTaskTimerService, wifi::WifiDriver,
-};
+use esp_idf_hal::delay::FreeRtos;
+use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver};
 use esp_idf_sys::{esp, esp_app_desc};
+use tokio::time::sleep;
 
 use esp32clock::*;
 
@@ -96,27 +96,15 @@ fn main() -> anyhow::Result<()> {
         Some(nvs_default_partition),
     )?;
 
-    let state = Box::pin(MyState {
-        config: RwLock::new(config),
-        api_cnt: RwLock::new(0),
-        nvs: RwLock::new(nvs),
-        pins: RwLock::new(Some(MyPins {
-            rmt,
-            spi,
-            sclk,
-            sdo,
-            cs,
-            button,
-        })),
-        wifi_up: RwLock::new(false),
-        ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
-        myid: RwLock::new("esp32clock".into()),
-        temp: RwLock::new(NO_TEMP),
-        temp_t: RwLock::new(0),
-        msg: RwLock::new(None),
-        tz: RwLock::new(tz),
-        reset: RwLock::new(false),
-    });
+    let pins = MyPins {
+        rmt,
+        spi,
+        sclk,
+        sdo,
+        cs,
+        button,
+    };
+    let state = Box::pin(MyState::new(config, nvs, pins, tz));
     let shared_state = Arc::new(state);
 
     tokio::runtime::Builder::new_current_thread()
@@ -130,11 +118,11 @@ fn main() -> anyhow::Result<()> {
 
             info!("Entering main loop...");
             tokio::select! {
-                _ = Box::pin(run_clock(shared_state.clone())) => {}
-                _ = Box::pin(run_mqtt(shared_state.clone())) => {}
-                _ = Box::pin(run_api_server(shared_state.clone())) => {}
-                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => {}
-
+                _ = Box::pin(run_clock(shared_state.clone())) => { error!("run_clock() ended."); }
+                _ = Box::pin(run_mqtt(shared_state.clone())) => { error!("run_mqtt() ended."); }
+                _ = Box::pin(run_api_server(shared_state.clone())) => { error!("run_api_server() ended."); }
+                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => { error!("wifi_loop.run() ended."); }
+                _ = Box::pin(pinger(shared_state.clone())) => { error!("pinger() ended."); }
             };
         }));
 
@@ -142,6 +130,36 @@ fn main() -> anyhow::Result<()> {
     info!("main() finished, reboot.");
     FreeRtos::delay_ms(3000);
     esp_idf_hal::reset::restart();
+}
+
+async fn pinger(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
+    loop {
+        sleep(Duration::from_secs(300)).await;
+
+        if let Some(ping_ip) = *state.ping_ip.read().await {
+            let if_idx = *state.if_index.read().await;
+            if if_idx > 0 {
+                tracing::log::info!("Starting ping {ping_ip} (if_idx {if_idx})");
+                let conf = ping::Configuration {
+                    count: 2,
+                    interval: Duration::from_millis(500),
+                    timeout: Duration::from_millis(200),
+                    data_size: 64,
+                    tos: 0,
+                };
+                let mut ping = ping::EspPing::new(if_idx);
+                let res = ping.ping(ping_ip, &conf)?;
+                tracing::log::info!("Pinger result: {res:?}");
+                if res.received == 0 {
+                    tracing::log::error!("Ping failed, rebooting.");
+                    sleep(Duration::from_millis(2000)).await;
+                    esp_idf_hal::reset::restart();
+                }
+            } else {
+                tracing::log::error!("No if_index. wat?");
+            }
+        }
+    }
 }
 
 // EOF

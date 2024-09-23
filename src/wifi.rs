@@ -65,16 +65,18 @@ impl<'a> WifiLoop<'a> {
             esp_idf_hal::reset::restart();
         }
 
-        sleep(Duration::from_secs(2)).await;
+        sleep(Duration::from_secs(5)).await;
 
-        *self.state.ip_addr.write().await = self
+        let netif = self
             .wifi
             .as_ref()
             .unwrap()
             .wifi()
-            .sta_netif()
-            .get_ip_info()?
-            .ip;
+            .sta_netif();
+        let ip_info = netif.get_ip_info()?;
+        *self.state.if_index.write().await = netif.get_index();
+        *self.state.ip_addr.write().await = ip_info.ip;
+        *self.state.ping_ip.write().await = Some(ip_info.subnet.gateway);
         *self.state.wifi_up.write().await = true;
 
         self.stay_connected().await
