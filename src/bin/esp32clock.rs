@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     // this means that the code size is not 32bit aligned
     // and any small change to the code will likely fix it.
     info!("Hello.");
-    info!("Starting up.");
+    info!("Starting up, firmare version {}", FW_VERSION);
 
     let sysloop = EspSystemEventLoop::take()?;
     let timer = EspTaskTimerService::new()?;

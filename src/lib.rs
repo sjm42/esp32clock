@@ -43,6 +43,8 @@ pub struct MyMessage {
     msg: String,
 }
 
+pub const FW_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub const SPIN: [char; 4] = ['|', '/', '-', '\\'];
 
 pub const WEEKDAY_EN: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
