@@ -23,7 +23,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
         if *state.wifi_up.read().await && Utc::now().year() > 2020 {
             break;
         }
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(10)).await;
     }
 
     loop {
@@ -47,15 +47,15 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
                 }
             };
             info!("MQTT connected.");
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(5)).await;
 
             let _ = tokio::try_join!(
-                Box::pin(event_loop(state.clone(), conn)),
                 Box::pin(subscribe(state.clone(), client)),
+                Box::pin(event_loop(state.clone(), conn)),
             );
 
-            error!("MQTT error, retrying after 5s...");
-            sleep(Duration::from_secs(5)).await;
+            error!("MQTT error, retrying after 30s...");
+            sleep(Duration::from_secs(30)).await;
         }
     }
 }
@@ -70,6 +70,7 @@ async fn subscribe(
         &state.myid.read().await,
         &state.config.read().await.mqtt_topic,
     ] {
+        sleep(Duration::from_secs(1)).await;
         info!("Subscribe: {t}");
         if let Err(e) = client.subscribe(t, mqtt::client::QoS::AtLeastOnce).await {
             error!("MQTT subscribe error: {e}");
@@ -78,7 +79,7 @@ async fn subscribe(
     }
     info!("MQTT all subscribed.");
 
-    // we stay here looping slowly or the program will crash miserably, idk why.
+    // we stay here looping slowly or the program will end miserably
     loop {
         sleep(Duration::from_secs(60)).await;
     }
