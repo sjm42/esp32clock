@@ -2,12 +2,17 @@ var postCfgDataAsJson = async ({
                                    url, formData
                                }) => {
     const formObj = Object.fromEntries(formData.entries());
+    // convert integers
     formObj.port = parseInt(formObj.port);
-    formObj.v4dhcp = (formObj.v4dhcp === "on");
     formObj.v4mask = parseInt(formObj.v4mask);
+    // convert booleans
+    formObj.wifi_wpa2ent = (formObj.wifi_wpa2ent === "on");
+    formObj.v4dhcp = (formObj.v4dhcp === "on");
     formObj.mqtt_enable = (formObj.mqtt_enable === "on");
+    //convert floats
     formObj.lat = parseFloat(formObj.lat);
     formObj.lon = parseFloat(formObj.lon);
+    // serialize to JSON
     const formDataJsonString = JSON.stringify(formObj);
 
     const fetchOptions = {

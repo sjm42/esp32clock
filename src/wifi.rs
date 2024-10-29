@@ -1,7 +1,7 @@
 // wifi.rs
 
 use anyhow::bail;
-use embedded_svc::wifi::{ClientConfiguration, Configuration};
+use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_svc::{
     eventloop::{EspEventLoop, System},
     ipv4,
@@ -9,6 +9,7 @@ use esp_idf_svc::{
     timer::{EspTimerService, Task},
     wifi::{AsyncWifi, EspWifi, WifiDriver},
 };
+use esp_idf_sys::esp_eap_client_set_username;
 use tokio::time::{sleep, Duration};
 
 use crate::*;
@@ -55,7 +56,6 @@ impl<'a> WifiLoop<'a> {
 
         let espwifi = EspWifi::wrap_all(wifidriver, net_if, EspNetif::new(netif::NetifStack::Ap)?)?;
         self.wifi = Some(AsyncWifi::wrap(espwifi, sysloop, timer.clone())?);
-
         Box::pin(self.configure()).await?;
 
         if let Err(e) = Box::pin(self.initial_connect()).await {
@@ -85,29 +85,45 @@ impl<'a> WifiLoop<'a> {
     pub async fn configure(&mut self) -> anyhow::Result<()> {
         info!("WiFi setting credentials...");
         let wifi = self.wifi.as_mut().unwrap();
-        wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-            ssid: self
-                .state
-                .config
-                .read()
-                .await
+        let config = self
+            .state
+            .config
+            .read()
+            .await;
+        let mut client_cfg = ClientConfiguration {
+            ssid: config
                 .wifi_ssid
                 .as_str()
                 .try_into()
                 .unwrap(),
-
-            password: self
-                .state
-                .config
-                .read()
-                .await
+            password: config
                 .wifi_pass
                 .as_str()
                 .try_into()
                 .unwrap(),
-
             ..Default::default()
-        }))?;
+        };
+
+        if config.wifi_wpa2ent {
+            client_cfg.auth_method = AuthMethod::WPA2Enterprise;
+            let username = config.wifi_username.as_str();
+            let password = config.wifi_pass.as_str();
+            unsafe {
+                esp_idf_sys::esp_eap_client_clear_ca_cert();
+                esp_idf_sys::esp_eap_client_clear_certificate_and_key();
+                esp_idf_sys::esp_eap_client_clear_identity();
+                esp_idf_sys::esp_eap_client_clear_username();
+                esp_idf_sys::esp_eap_client_clear_password();
+                esp_idf_sys::esp_eap_client_clear_new_password();
+                let ret1 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
+                let ret2 = esp_idf_sys::esp_eap_client_set_password(password.as_ptr(), password.len() as i32);
+                let ret3 = esp_idf_sys::esp_eap_client_set_new_password(password.as_ptr(), password.len() as i32);
+
+                info!("WiFi WPA2 Enterprise: {ret1}:{ret2}:{ret3}");
+                // esp_idf_sys::esp_wifi_sta_enterprise_enable();
+            }
+        }
+        wifi.set_configuration(&Configuration::Client(client_cfg))?;
 
         info!("WiFi driver starting...");
         Ok(Box::pin(wifi.start()).await?)

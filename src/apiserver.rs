@@ -178,6 +178,11 @@ pub async fn set_conf(
         return (StatusCode::INTERNAL_SERVER_ERROR, emsg.to_string()).into_response();
     }
 
+    if !config.wifi_wpa2ent {
+        // No username without WPA2 Enterprise auth
+        config.wifi_username.clear();
+    }
+
     if config.v4dhcp {
         // clear out these if we are using DHCP
         config.v4addr = net::Ipv4Addr::new(0, 0, 0, 0);
