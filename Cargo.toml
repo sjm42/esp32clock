@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "1.4.0"
+version = "1.4.1"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 resolver = "2"
@@ -34,7 +34,8 @@ chrono = "0"
 chrono-tz = "0"
 crc = "3"
 embedded-hal = "1"
-embedded-svc = { version = "0", features = ["experimental"] }
+# embedded-svc = { version = "0", features = ["experimental"] }
+embedded-svc = { version = "0" }
 encoding_rs = "0"
 esp-idf-hal = "0"
 esp-idf-svc = { version = "0", features = ["alloc", "experimental"] }

@@ -96,14 +96,17 @@ impl<'a> WifiLoop<'a> {
                 .as_str()
                 .try_into()
                 .unwrap(),
-            password: config
+            ..Default::default()
+        };
+        if config.wifi_pass.len() == 0 {
+            client_cfg.auth_method = AuthMethod::None;
+        } else {
+            client_cfg.password = config
                 .wifi_pass
                 .as_str()
                 .try_into()
-                .unwrap(),
-            ..Default::default()
-        };
-
+                .unwrap();
+        }
         if config.wifi_wpa2ent {
             client_cfg.auth_method = AuthMethod::WPA2Enterprise;
             let username = config.wifi_username.as_str();
@@ -115,12 +118,14 @@ impl<'a> WifiLoop<'a> {
                 esp_idf_sys::esp_eap_client_clear_username();
                 esp_idf_sys::esp_eap_client_clear_password();
                 esp_idf_sys::esp_eap_client_clear_new_password();
-                let ret1 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
-                let ret2 = esp_idf_sys::esp_eap_client_set_password(password.as_ptr(), password.len() as i32);
-                let ret3 = esp_idf_sys::esp_eap_client_set_new_password(password.as_ptr(), password.len() as i32);
+                // let ret1 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
+                let ret1 = esp_idf_sys::esp_eap_client_set_identity(username.as_ptr(), username.len() as i32);
+                let ret2 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
+                let ret3 = esp_idf_sys::esp_eap_client_set_password(password.as_ptr(), password.len() as i32);
+                // let ret4 = esp_idf_sys::esp_eap_client_set_new_password(password.as_ptr(), password.len() as i32);
+                let ret4 = esp_idf_sys::esp_wifi_sta_enterprise_enable();
 
-                info!("WiFi WPA2 Enterprise: {ret1}:{ret2}:{ret3}");
-                // esp_idf_sys::esp_wifi_sta_enterprise_enable();
+                info!("WiFi WPA2 Enterprise: {ret1}:{ret2}:{ret3}:{ret4}");
             }
         }
         wifi.set_configuration(&Configuration::Client(client_cfg))?;
