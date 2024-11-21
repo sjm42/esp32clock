@@ -1,3 +1,5 @@
 #!/bin/sh
-cargo run -r -- --baud 921600
+set -e
+set -x
+exec cargo run -r -- --baud 921600
 # EOF

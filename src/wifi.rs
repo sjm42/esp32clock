@@ -101,6 +101,7 @@ impl<'a> WifiLoop<'a> {
         if config.wifi_pass.len() == 0 {
             client_cfg.auth_method = AuthMethod::None;
         } else {
+            client_cfg.auth_method = AuthMethod::WPA2WPA3Personal;
             client_cfg.password = config
                 .wifi_pass
                 .as_str()
