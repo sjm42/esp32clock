@@ -1,16 +1,15 @@
 // mqtt.rs
 
-use anyhow::bail;
-use chrono::*;
-use embedded_svc::mqtt::client::EventPayload;
-use esp_idf_svc::mqtt;
-use tokio::time::{sleep, Duration};
+use esp_idf_svc::mqtt::{
+    self,
+    client::{EventPayload, MessageId},
+};
+use esp_idf_sys::EspError;
 
 use crate::*;
 
-
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
-    if !state.config.read().await.mqtt_enable {
+    if !state.config.mqtt_enable {
         info!("Temp is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
         loop {
@@ -28,7 +27,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
 
     loop {
         {
-            let url = &state.config.read().await.mqtt_url;
+            let url = &state.config.mqtt_url;
             let myid = state.myid.read().await.clone();
             info!("MQTT conn: {url} [{myid}]");
 
@@ -50,7 +49,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
             sleep(Duration::from_secs(5)).await;
 
             let _ = tokio::try_join!(
-                Box::pin(subscribe(state.clone(), client)),
+                Box::pin(subscribe_publish(state.clone(), client)),
                 Box::pin(event_loop(state.clone(), conn)),
             );
 
@@ -60,7 +59,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     }
 }
 
-async fn subscribe(
+async fn subscribe_publish(
     state: Arc<Pin<Box<MyState>>>,
     mut client: mqtt::client::EspAsyncMqttClient,
 ) -> anyhow::Result<()> {
@@ -68,7 +67,7 @@ async fn subscribe(
     for t in [
         "esp32clock-all",
         &state.myid.read().await,
-        &state.config.read().await.mqtt_topic,
+        &state.config.mqtt_topic,
     ] {
         sleep(Duration::from_secs(1)).await;
         info!("Subscribe: {t}");
@@ -79,17 +78,54 @@ async fn subscribe(
     }
     info!("MQTT all subscribed.");
 
-    // we stay here looping slowly or the program will end miserably
+    let sensor_topic = state.config.sensor_topic.clone();
     loop {
-        sleep(Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(10)).await;
+
+        if state.config.sensor_enable {
+            {
+                let mut fresh_data = state.meas_updated.write().await;
+                if !*fresh_data {
+                    continue;
+                }
+                *fresh_data = false;
+            }
+            let temp = *state.meas.read().await;
+            if temp > -100.0 {
+                let mqtt_data = format!("{{ \"temperature\": {temp} }}");
+                Box::pin(mqtt_send(&mut client, &sensor_topic, &mqtt_data)).await?;
+            }
+        }
     }
+}
+
+async fn mqtt_send(
+    client: &mut mqtt::client::EspAsyncMqttClient,
+    topic: &str,
+    data: &str,
+) -> Result<MessageId, EspError> {
+    info!("MQTT sending {topic} {data}");
+
+    let result = client
+        .publish(
+            topic,
+            mqtt::client::QoS::AtLeastOnce,
+            false,
+            data.as_bytes(),
+        )
+        .await;
+    if let Err(e) = result {
+        let msg = format!("MQTT send error: {e}");
+        error!("{msg}");
+    }
+    result
 }
 
 async fn event_loop(
     state: Arc<Pin<Box<MyState>>>,
     mut conn: mqtt::client::EspAsyncMqttConnection,
 ) -> anyhow::Result<()> {
-    let temp_topic = &state.config.read().await.mqtt_topic;
+    let temp_topic = &state.config.mqtt_topic;
 
     while let Ok(notification) = Box::pin(conn.next()).await {
         debug!("MQTT recvd: {:?}", notification.payload());
@@ -132,5 +168,4 @@ async fn event_loop(
     }
     bail!("MQTT closed.")
 }
-
 // EOF

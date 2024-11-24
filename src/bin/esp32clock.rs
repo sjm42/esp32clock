@@ -2,17 +2,16 @@
 
 #![warn(clippy::large_futures)]
 
-
-use std::time::Duration;
-
 use chrono_tz::Etc::UTC;
 use esp_idf_hal::delay::FreeRtos;
-use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver};
+use esp_idf_hal::gpio::Pull;
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver,
+};
 use esp_idf_sys::{esp, esp_app_desc};
-use tokio::time::sleep;
+use one_wire_bus::OneWire;
 
 use esp32clock::*;
-
 
 esp_app_desc!();
 
@@ -81,22 +80,15 @@ fn main() -> anyhow::Result<()> {
     });
 
     let peripherals = Peripherals::take().unwrap();
-    let rmt = peripherals.rmt.channel0;
     let pins = peripherals.pins;
+    let rmt = peripherals.rmt.channel0;
 
     let spi = peripherals.spi2;
     let sclk = pins.gpio0.downgrade_output();
     let cs = pins.gpio1.downgrade_output();
     let sdo = pins.gpio2.downgrade_output();
     let button = pins.gpio9.downgrade_input();
-
-    let wifidriver = WifiDriver::new(
-        peripherals.modem,
-        sysloop.clone(),
-        Some(nvs_default_partition),
-    )?;
-
-    let pins = MyPins {
+    let mypins = MyPins {
         rmt,
         spi,
         sclk,
@@ -104,8 +96,42 @@ fn main() -> anyhow::Result<()> {
         cs,
         button,
     };
-    let state = Box::pin(MyState::new(config, nvs, pins, tz));
+
+    let mut onewire = pins.gpio8.downgrade();
+    let onewire_addr = if config.sensor_enable {
+        info!("Sensor: scanning 1-wire devices...");
+
+        let mut pin_drv = gpio::PinDriver::input_output_od(&mut onewire).unwrap();
+        pin_drv.set_pull(Pull::Up).unwrap();
+        let mut w = OneWire::new(pin_drv).unwrap();
+
+        if let Ok(a) = scan_1wire(&mut w) {
+            info!("Onewire response: {a:#?}");
+            a
+        } else {
+            one_wire_bus::Address(0)
+        }
+    } else {
+        info!("Sensor is disabled.");
+        one_wire_bus::Address(0)
+    };
+    let onewire_pin = MyOnewire { onewire };
+
+    let state = Box::pin(MyState::new(
+        config,
+        nvs,
+        onewire_addr,
+        tz,
+        mypins,
+        onewire_pin,
+    ));
     let shared_state = Arc::new(state);
+
+    let wifidriver = WifiDriver::new(
+        peripherals.modem,
+        sysloop.clone(),
+        Some(nvs_default_partition),
+    )?;
 
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -119,6 +145,7 @@ fn main() -> anyhow::Result<()> {
             info!("Entering main loop...");
             tokio::select! {
                 _ = Box::pin(run_clock(shared_state.clone())) => { error!("run_clock() ended."); }
+                _ = Box::pin(poll_sensor(shared_state.clone())) => { error!("poll_sensor() ended."); }
                 _ = Box::pin(run_mqtt(shared_state.clone())) => { error!("run_mqtt() ended."); }
                 _ = Box::pin(run_api_server(shared_state.clone())) => { error!("run_api_server() ended."); }
                 _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => { error!("wifi_loop.run() ended."); }
@@ -161,5 +188,4 @@ async fn pinger(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
         }
     }
 }
-
 // EOF

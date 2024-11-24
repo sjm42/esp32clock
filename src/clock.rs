@@ -1,9 +1,7 @@
 // clock.rs
 
-use chrono::*;
 use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
-use tokio::time::{sleep, Duration};
 
 #[cfg(feature = "ws2812")]
 use smart_leds::{
@@ -16,15 +14,12 @@ use smart_leds_trait::SmartLedsWrite;
 
 use crate::*;
 
-
 const DEFAULT_VSCROLLD: u8 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
 
 const N_LEDS: usize = 8 * 8;
 const INTENSITY_NIGHT: u8 = 1;
 const INTENSITY_DAY: u8 = 4;
-const INTENSITY_BOOST_N: u8 = 3;
-const INTENSITY_BOOST_D: u8 = 4;
 
 // #[allow(unused_variables)]
 pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
@@ -84,25 +79,11 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     };
 
     // set up led matrix display
-
     #[cfg(feature = "max7219")]
     {
         led_mat.power_on().ok();
         for i in 0..8 {
-            let intensity = {
-                #[cfg(not(feature = "special"))]
-                {
-                    INTENSITY_NIGHT
-                }
-                #[cfg(feature = "special")]
-                {
-                    if i > 3 {
-                        INTENSITY_NIGHT + INTENSITY_BOOST_N
-                    } else {
-                        INTENSITY_NIGHT
-                    }
-                }
-            };
+            let intensity = INTENSITY_NIGHT;
             led_mat.clear_display(i).ok();
             led_mat.set_intensity(i, intensity).ok();
         }
@@ -141,7 +122,6 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     }
 
     // show our IP address briefly
-
     let ip_info = format!("IP: {}", state.ip_addr.read().await);
     #[cfg(feature = "max7219")]
     {
@@ -186,14 +166,12 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     }
 
     // set up language and timezone
-
-    let lang = state.config.read().await.lang.to_owned();
-    let tz = state.tz.read().await.to_owned();
+    let lang = state.config.lang.to_owned();
+    let tz = state.tz.to_owned();
 
     // Only determine local sunrise/sunset times once because we can rely
     // on the fact that we are rebooting every night!
-
-    let (lat, lon) = (state.config.read().await.lat, state.config.read().await.lon);
+    let (lat, lon) = (state.config.lat, state.config.lon);
     let s_hemisphere = lat < 0.0;
     let local = Utc::now().with_timezone(&tz);
     let (sunrise, sunset) = sunrise::sunrise_sunset(
@@ -211,7 +189,6 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         .with_timezone(&tz);
 
     // finally, move to the main clock display loop
-
     let mut time_vscroll = Some(true);
     loop {
         if time_vscroll.is_none() {
@@ -263,35 +240,13 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             } else {
                 local > sunrise_t && local < sunset_t
             };
-            info!("Daylight: {daylight}");
+            // info!("Daylight: {daylight}");
 
             for i in 0..8 {
                 let intensity = if daylight {
-                    #[cfg(not(feature = "special"))]
-                    {
-                        INTENSITY_DAY
-                    }
-                    #[cfg(feature = "special")]
-                    {
-                        if i > 3 {
-                            INTENSITY_DAY + INTENSITY_BOOST_D
-                        } else {
-                            INTENSITY_DAY
-                        }
-                    }
+                    INTENSITY_DAY
                 } else {
-                    #[cfg(not(feature = "special"))]
-                    {
-                        INTENSITY_NIGHT
-                    }
-                    #[cfg(feature = "special")]
-                    {
-                        if i > 3 {
-                            INTENSITY_NIGHT + INTENSITY_BOOST_N
-                        } else {
-                            INTENSITY_NIGHT
-                        }
-                    }
+                    INTENSITY_NIGHT
                 };
                 led_mat.set_intensity(i, intensity).ok();
             }
@@ -332,9 +287,8 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
             21 | 51 => {
                 // show temperature?
-
                 let t = *state.temp.read().await;
-                if t > NO_TEMP && state.config.read().await.mqtt_enable {
+                if t > NO_TEMP && state.config.mqtt_enable {
                     if *state.temp_t.read().await < local.timestamp() - 3600 {
                         // Well, MQTT is enabled, we have had earlier temp reading, and now it's expired.
                         // Thus, it's better to reboot because we have some kind of network problem.

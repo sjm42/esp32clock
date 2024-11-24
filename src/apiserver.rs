@@ -1,7 +1,5 @@
 // apiserver.rs
 
-use std::{net, net::SocketAddr};
-
 use askama::Template;
 use axum::{
     body::Body,
@@ -12,11 +10,8 @@ use axum::{
     Json,
 };
 pub use axum_macros::debug_handler;
-use chrono_tz::{Tz, TZ_VARIANTS};
-use tokio::time::{sleep, Duration};
 
 pub use crate::*;
-
 
 pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     loop {
@@ -26,7 +21,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
         sleep(Duration::from_secs(1)).await;
     }
 
-    let listen = format!("0.0.0.0:{}", state.config.read().await.port);
+    let listen = format!("0.0.0.0:{}", state.config.port);
     let addr = listen.parse::<SocketAddr>()?;
 
     let app = Router::new()
@@ -72,7 +67,7 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
     };
     info!("#{cnt} get_index()");
 
-    let index = match state.config.read().await.clone().render() {
+    let index = match state.config.clone().render() {
         Err(e) => {
             let err_msg = format!("Index template error: {e:?}\n");
             error!("{err_msg}");
@@ -158,7 +153,7 @@ pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<B
     };
     info!("#{cnt} get_conf()");
 
-    (StatusCode::OK, Json(state.config.read().await.clone())).into_response()
+    (StatusCode::OK, Json(state.config.clone())).into_response()
 }
 
 pub async fn set_conf(

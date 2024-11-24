@@ -1,6 +1,5 @@
 // wifi.rs
 
-use anyhow::bail;
 use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_svc::{
     eventloop::{EspEventLoop, System},
@@ -10,10 +9,8 @@ use esp_idf_svc::{
     wifi::{AsyncWifi, EspWifi, WifiDriver},
 };
 use esp_idf_sys::esp_eap_client_set_username;
-use tokio::time::{sleep, Duration};
 
 use crate::*;
-
 
 pub struct WifiLoop<'a> {
     pub state: Arc<std::pin::Pin<Box<MyState>>>,
@@ -29,17 +26,17 @@ impl<'a> WifiLoop<'a> {
     ) -> anyhow::Result<()> {
         info!("Initializing Wi-Fi...");
 
-        let ipv4_config = if self.state.config.read().await.v4dhcp {
+        let ipv4_config = if self.state.config.v4dhcp {
             ipv4::ClientConfiguration::DHCP(ipv4::DHCPClientSettings::default())
         } else {
             ipv4::ClientConfiguration::Fixed(ipv4::ClientSettings {
-                ip: self.state.config.read().await.v4addr,
+                ip: self.state.config.v4addr,
                 subnet: ipv4::Subnet {
-                    gateway: self.state.config.read().await.v4gw,
-                    mask: ipv4::Mask(self.state.config.read().await.v4mask),
+                    gateway: self.state.config.v4gw,
+                    mask: ipv4::Mask(self.state.config.v4mask),
                 },
-                dns: Some(self.state.config.read().await.dns1),
-                secondary_dns: Some(self.state.config.read().await.dns2),
+                dns: Some(self.state.config.dns1),
+                secondary_dns: Some(self.state.config.dns2),
             })
         };
         // info!("IP config: {ipv4_config:?}");
@@ -67,12 +64,7 @@ impl<'a> WifiLoop<'a> {
 
         sleep(Duration::from_secs(5)).await;
 
-        let netif = self
-            .wifi
-            .as_ref()
-            .unwrap()
-            .wifi()
-            .sta_netif();
+        let netif = self.wifi.as_ref().unwrap().wifi().sta_netif();
         let ip_info = netif.get_ip_info()?;
         *self.state.if_index.write().await = netif.get_index();
         *self.state.ip_addr.write().await = ip_info.ip;
@@ -85,28 +77,16 @@ impl<'a> WifiLoop<'a> {
     pub async fn configure(&mut self) -> anyhow::Result<()> {
         info!("WiFi setting credentials...");
         let wifi = self.wifi.as_mut().unwrap();
-        let config = self
-            .state
-            .config
-            .read()
-            .await;
+        let config = &self.state.config;
         let mut client_cfg = ClientConfiguration {
-            ssid: config
-                .wifi_ssid
-                .as_str()
-                .try_into()
-                .unwrap(),
+            ssid: config.wifi_ssid.as_str().try_into().unwrap(),
             ..Default::default()
         };
-        if config.wifi_pass.len() == 0 {
+        if config.wifi_pass.is_empty() {
             client_cfg.auth_method = AuthMethod::None;
         } else {
-            client_cfg.auth_method = AuthMethod::WPA2WPA3Personal;
-            client_cfg.password = config
-                .wifi_pass
-                .as_str()
-                .try_into()
-                .unwrap();
+            client_cfg.auth_method = AuthMethod::WPA2Personal;
+            client_cfg.password = config.wifi_pass.as_str().try_into().unwrap();
         }
         if config.wifi_wpa2ent {
             client_cfg.auth_method = AuthMethod::WPA2Enterprise;
@@ -120,9 +100,18 @@ impl<'a> WifiLoop<'a> {
                 esp_idf_sys::esp_eap_client_clear_password();
                 esp_idf_sys::esp_eap_client_clear_new_password();
                 // let ret1 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
-                let ret1 = esp_idf_sys::esp_eap_client_set_identity(username.as_ptr(), username.len() as i32);
-                let ret2 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
-                let ret3 = esp_idf_sys::esp_eap_client_set_password(password.as_ptr(), password.len() as i32);
+                let ret1 = esp_idf_sys::esp_eap_client_set_identity(
+                    username.as_ptr(),
+                    username.len() as i32,
+                );
+                let ret2 = esp_idf_sys::esp_eap_client_set_username(
+                    username.as_ptr(),
+                    username.len() as i32,
+                );
+                let ret3 = esp_idf_sys::esp_eap_client_set_password(
+                    password.as_ptr(),
+                    password.len() as i32,
+                );
                 // let ret4 = esp_idf_sys::esp_eap_client_set_new_password(password.as_ptr(), password.len() as i32);
                 let ret4 = esp_idf_sys::esp_wifi_sta_enterprise_enable();
 
@@ -182,5 +171,4 @@ impl<'a> WifiLoop<'a> {
         }
     }
 }
-
 // EOF

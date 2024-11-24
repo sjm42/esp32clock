@@ -600,6 +600,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ds18b20"
+version = "0.2.0"
+source = "git+https://github.com/sjm42/ds18b20#18203fc91ce376acba6f5ea4e930c97b6df89e3b"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "one-wire-bus",
+]
+
+[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -853,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "esp32clock"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "anyhow",
  "askama",
@@ -865,6 +874,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "crc",
+ "ds18b20",
  "embedded-hal 1.0.0",
  "embedded-svc",
  "embuild",
@@ -873,6 +883,7 @@ dependencies = [
  "esp-idf-svc",
  "esp-idf-sys",
  "max7219",
+ "one-wire-bus",
  "postcard",
  "serde",
  "serde_json",
@@ -1465,6 +1476,14 @@ name = "once_cell"
 version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
+
+[[package]]
+name = "one-wire-bus"
+version = "0.2.0"
+source = "git+https://github.com/sjm42/one-wire-bus#40be0a80267fed4f06a9971780ccc7bda747fab9"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
 
 [[package]]
 name = "parse-zoneinfo"

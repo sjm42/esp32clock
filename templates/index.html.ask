@@ -29,7 +29,9 @@
                     ("text", "lang", lang.to_string(), "Display language (Eng/Fin)"),
                     ("text", "tz", tz.to_string(), "Timezone"),
                     ("text", "lat", lat.to_string(), "Location, latitude"),
-                    ("text", "lon", lon.to_string(), "Location, longitude")
+                    ("text", "lon", lon.to_string(), "Location, longitude"),
+                    ("checkbox", "sensor_enable", sensor_enable.to_string(), "Sensor enabled"),
+                    ("text", "sensor_topic", sensor_topic.to_string(), "Sensor MQTT topic")
                 ] -%}
 <form action="/conf" method="POST" name="esp32cfg">
     <table>

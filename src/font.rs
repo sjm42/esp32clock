@@ -2564,5 +2564,4 @@ pub const FONT: [u8; N_FONT] = [
     0b00001100,
     0b11111000,
 ];
-
 // EOF

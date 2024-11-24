@@ -1,3 +1,4 @@
+// form.js for esp32clock
 var postCfgDataAsJson = async ({
                                    url, formData
                                }) => {
@@ -9,6 +10,7 @@ var postCfgDataAsJson = async ({
     formObj.wifi_wpa2ent = (formObj.wifi_wpa2ent === "on");
     formObj.v4dhcp = (formObj.v4dhcp === "on");
     formObj.mqtt_enable = (formObj.mqtt_enable === "on");
+    formObj.sensor_enable = (formObj.sensor_enable === "on");
     //convert floats
     formObj.lat = parseFloat(formObj.lat);
     formObj.lon = parseFloat(formObj.lon);
@@ -93,3 +95,4 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelector("form[name='esp32msg']")
         .addEventListener("submit", handleMsgSubmit);
 });
+// EOF

@@ -1,15 +1,11 @@
 // config.rs
 
-use std::{fmt, net};
-
-use anyhow::bail;
 use askama::Template;
 use crc::{Crc, CRC_32_ISCSI};
 use esp_idf_svc::nvs;
 use serde::{Deserialize, Serialize};
 
 use crate::*;
-
 
 const CONFIG_NAME: &str = "cfg";
 pub const NVS_BUF_SIZE: usize = 256;
@@ -54,6 +50,9 @@ pub struct MyConfig {
     pub tz: String,
     pub lat: f32,
     pub lon: f32,
+
+    pub sensor_enable: bool,
+    pub sensor_topic: String,
 }
 
 impl Default for MyConfig {
@@ -82,8 +81,11 @@ impl Default for MyConfig {
 
             lang: MyLang::Eng,
             tz: "Europe/Helsinki".into(),
-            lat: 61.5, //
-            lon: 23.8, // Tampere
+            lat: 61.5, // Tampere
+            lon: 23.8, //
+
+            sensor_enable: false,
+            sensor_topic: String::new(),
         }
     }
 }
@@ -147,5 +149,4 @@ impl MyConfig {
         }
     }
 }
-
 // EOF

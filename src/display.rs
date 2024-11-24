@@ -4,7 +4,6 @@ use std::borrow::Cow;
 
 use bit_reverse::LookupReverse;
 use encoding_rs::*;
-use tokio::time::{sleep, Duration};
 
 use crate::*;
 
