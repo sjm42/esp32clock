@@ -596,7 +596,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3983b127f13995e68c1e29071e5d115cd96f215ccb5e6812e3728cd6f92653b3"
 dependencies = [
- "thiserror 2.0.4",
+ "thiserror 2.0.5",
 ]
 
 [[package]]
@@ -1978,9 +1978,9 @@ dependencies = [
 
 [[package]]
 name = "sunrise-next"
-version = "1.2.3"
+version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad483e4ba6ee5d9f9c4b7c25d75f0c3b73e5b5fa86d6f6d00302cd093f800cf5"
+checksum = "f8452cee9bbdb70d30684c5cf06082a5a09f477a8f3ab91a2e79c4cedcf9b2d3"
 dependencies = [
  "chrono",
 ]
@@ -2043,11 +2043,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.4"
+version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f49a1853cf82743e3b7950f77e0f4d622ca36cf4317cba00c767838bac8d490"
+checksum = "643caef17e3128658ff44d85923ef2d28af81bb71e0d67bbfe1d76f19a73e053"
 dependencies = [
- "thiserror-impl 2.0.4",
+ "thiserror-impl 2.0.5",
 ]
 
 [[package]]
@@ -2063,9 +2063,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.4"
+version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8381894bb3efe0c4acac3ded651301ceee58a15d47c2e34885ed1908ad667061"
+checksum = "995d0bbc9995d1f19d28b7215a9352b0fc3cd3a2d2ec95c2cadc485cdedbcdde"
 dependencies = [
  "proc-macro2",
  "quote",
