@@ -64,7 +64,7 @@ impl Default for MyConfig {
                 .unwrap_or(DEFAULT_API_PORT),
 
             wifi_ssid: option_env!("WIFI_SSID").unwrap_or("internet").into(),
-            wifi_pass: option_env!("WIFI_PASS").unwrap_or("password").into(),
+            wifi_pass: option_env!("WIFI_PASS").unwrap_or("").into(),
             wifi_wpa2ent: false,
             wifi_username: String::new(),
 

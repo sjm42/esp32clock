@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "1.6.0"
+version = "1.6.1"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 resolver = "2"
@@ -44,7 +44,7 @@ one-wire-bus = { git = "https://github.com/sjm42/one-wire-bus" }
 postcard = { version = "1", features = ["alloc", "use-crc"] }
 serde = "1"
 serde_json = "1"
-sunrise-next = "1"
+sunrise = "1"
 tokio = { version = "1", features = ["rt", "net", "io-util"] }
 # tower-http = { version = "0" }
 tracing = "0"
