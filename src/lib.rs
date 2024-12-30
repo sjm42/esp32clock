@@ -1,17 +1,21 @@
 // lib.rs
 
-#![warn(clippy::large_futures)]
 #![feature(round_char_boundary)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_mut)]
-#![allow(dead_code)]
+#![warn(clippy::large_futures)]
+
+// #![allow(unused_imports)]
+// #![allow(unused_variables)]
+// #![allow(unused_mut)]
+// #![allow(dead_code)]
 
 pub use std::{
     fmt, net,
     net::{Ipv4Addr, SocketAddr},
 };
 pub use std::{pin::Pin, sync::Arc};
+
+#[cfg(feature = "max7219")]
+use max7219::{connectors::SpiConnector, MAX7219};
 
 pub use anyhow::bail;
 pub use chrono::*;
@@ -22,8 +26,6 @@ pub use esp_idf_hal::{
     spi,
 };
 pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
-#[cfg(feature = "max7219")]
-use max7219::{connectors::SpiConnector, MAX7219};
 pub use serde::Deserialize;
 pub use tokio::sync::RwLock;
 pub use tokio::time::{sleep, Duration};

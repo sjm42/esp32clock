@@ -194,6 +194,10 @@ pub async fn set_conf(
         return (StatusCode::BAD_REQUEST, emsg).into_response();
     }
 
+    // MAX7219 has 4 bits for intensity, i.e. values 0-15
+    config.led_intensity_night = config.led_intensity_night.min(15);
+    config.led_intensity_day = config.led_intensity_day.min(15);
+
     info!("Saving new config to nvs...");
     Box::pin(save_conf(state, config)).await
 }

@@ -31,7 +31,9 @@
                     ("text", "lat", lat.to_string(), "Location, latitude"),
                     ("text", "lon", lon.to_string(), "Location, longitude"),
                     ("checkbox", "sensor_enable", sensor_enable.to_string(), "Sensor enabled"),
-                    ("text", "sensor_topic", sensor_topic.to_string(), "Sensor MQTT topic")
+                    ("text", "sensor_topic", sensor_topic.to_string(), "Sensor MQTT topic"),
+                    ("text", "led_intensity_day", led_intensity_day.to_string(), "Daytime display brightness (1-15)"),
+                    ("text", "led_intensity_night", led_intensity_night.to_string(), "Nighttime display brightness (1-15)")
                 ] -%}
 <form action="/conf" method="POST" name="esp32cfg">
     <table>

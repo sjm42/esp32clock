@@ -8,7 +8,6 @@ use esp_idf_svc::{
     timer::{EspTimerService, Task},
     wifi::{AsyncWifi, EspWifi, WifiDriver},
 };
-use esp_idf_sys::esp_eap_client_set_username;
 
 use crate::*;
 

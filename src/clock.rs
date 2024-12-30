@@ -1,6 +1,5 @@
 // clock.rs
 
-use embedded_hal::spi::*;
 use esp_idf_svc::sntp;
 
 #[cfg(feature = "ws2812")]
@@ -16,10 +15,6 @@ use crate::*;
 
 const DEFAULT_VSCROLLD: u8 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
-
-const N_LEDS: usize = 8 * 8;
-const INTENSITY_NIGHT: u8 = 1;
-const INTENSITY_DAY: u8 = 4;
 
 // #[allow(unused_variables)]
 pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
@@ -83,7 +78,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     {
         led_mat.power_on().ok();
         for i in 0..8 {
-            let intensity = INTENSITY_NIGHT;
+            let intensity = state.config.led_intensity_night;
             led_mat.clear_display(i).ok();
             led_mat.set_intensity(i, intensity).ok();
         }
@@ -210,6 +205,8 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         }
 
         let local = Utc::now().with_timezone(&tz);
+        // let ms = ((local.timestamp_subsec_millis() % 1000) / 500) * 5;
+        // let sp = SPIN[((local.timestamp_subsec_millis() % 1000) / 250) as usize];
         let sec = local.second();
         let min = local.minute();
         let hour = local.hour();
@@ -225,7 +222,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             *state.reset.write().await = true;
         }
 
-        let ts = format!("{hour:02}{min:02}:{sec:02}");
+        let ts = format!(" {hour:02}{min:02}:{sec:02}");
 
         #[cfg(feature = "max7219")]
         if let Some(dir) = time_vscroll {
@@ -244,9 +241,9 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
             for i in 0..8 {
                 let intensity = if daylight {
-                    INTENSITY_DAY
+                    state.config.led_intensity_day
                 } else {
-                    INTENSITY_NIGHT
+                    state.config.led_intensity_night
                 };
                 led_mat.set_intensity(i, intensity).ok();
             }

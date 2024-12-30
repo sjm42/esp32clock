@@ -5,8 +5,7 @@ use esp_idf_hal::{
     delay::{Ets, FreeRtos},
     gpio::{self, Pull},
 };
-use esp_idf_svc::sntp;
-use one_wire_bus::{Address, OneWire, OneWireError, SearchState};
+use one_wire_bus::{Address, OneWire, OneWireError};
 
 use crate::*;
 
@@ -73,10 +72,7 @@ pub fn scan_1wire<P, E>(one_wire_bus: &mut OneWire<P>) -> Result<Address, Measur
 where
     P: OutputPin<Error=E> + InputPin<Error=E>,
 {
-    let mut st: SearchState;
-    let mut state = None;
-    let mut device: Option<Address> = None;
-
+    let state = None;
     if let Some((addr, _state)) = one_wire_bus.device_search(state, false, &mut Ets)? {
         Ok(addr)
     } else {

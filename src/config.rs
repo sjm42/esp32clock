@@ -53,6 +53,9 @@ pub struct MyConfig {
 
     pub sensor_enable: bool,
     pub sensor_topic: String,
+
+    pub led_intensity_day: u8,
+    pub led_intensity_night: u8,
 }
 
 impl Default for MyConfig {
@@ -86,6 +89,9 @@ impl Default for MyConfig {
 
             sensor_enable: false,
             sensor_topic: String::new(),
+
+            led_intensity_day: 4,
+            led_intensity_night: 1,
         }
     }
 }

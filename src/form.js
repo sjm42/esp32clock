@@ -6,6 +6,8 @@ var postCfgDataAsJson = async ({
     // convert integers
     formObj.port = parseInt(formObj.port);
     formObj.v4mask = parseInt(formObj.v4mask);
+    formObj.led_intensity_day = parseInt(formObj.led_intensity_day);
+    formObj.led_intensity_night = parseInt(formObj.led_intensity_night);
     // convert booleans
     formObj.wifi_wpa2ent = (formObj.wifi_wpa2ent === "on");
     formObj.v4dhcp = (formObj.v4dhcp === "on");
