@@ -41,7 +41,7 @@ impl<'a> WifiLoop<'a> {
         // info!("IP config: {ipv4_config:?}");
 
         let net_if = EspNetif::new_with_conf(&netif::NetifConfiguration {
-            ip_configuration: ipv4::Configuration::Client(ipv4_config),
+            ip_configuration: Some(ipv4::Configuration::Client(ipv4_config)),
             ..netif::NetifConfiguration::wifi_default_client()
         })?;
         let mac = net_if.get_mac()?;
