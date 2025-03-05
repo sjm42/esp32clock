@@ -1317,11 +1317,11 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "max7219"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96ad36f14b96e5e196c3cf1028eba57c8cf4e6045b1d4b68951d23c422400d1c"
+checksum = "0f591fc7e31531ea92a65ca9d2a6a9d8c96cc8e59ffeb9a9644279f254bbcbc9"
 dependencies = [
- "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
 ]
 
 [[package]]
