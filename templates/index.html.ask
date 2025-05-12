@@ -37,14 +37,14 @@
                 ] -%}
 <form action="/conf" method="POST" name="esp32cfg">
     <table>
-    {%- for (type, name, value, descr) in myform %}
+    {%- for (itype, name, value, descr) in myform %}
             <tr>
-    {%- if type == "checkbox" %}
+    {%- if *itype == "checkbox" %}
                 <th><label for="{{name}}">{{descr}}:</label></th>
-                <th><input name="{{name}}" type="{{type}}"{% if value == "true" %} checked{% endif %}></th>
+                <th><input name="{{name}}" type="{{itype}}"{% if value == "true" %} checked{% endif %}></th>
     {%- else %}
                 <th><label for="{{name}}">{{descr}}:</label></th>
-                <th><input name="{{name}}" type="{{type}}" value="{{value}}"></th>
+                <th><input name="{{name}}" type="{{itype}}" value="{{value}}"></th>
     {%- endif %}
             </tr>
     {%- endfor %}

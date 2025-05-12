@@ -16,7 +16,7 @@ pub struct MyDisplay {
     pub upside_down: bool,
 }
 
-impl<'a> MyDisplay {
+impl MyDisplay {
     pub fn new(upside_down: bool) -> Self {
         Self {
             fbuf: [[0; 8]; ELEMS],

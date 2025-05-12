@@ -4,9 +4,8 @@ use esp_idf_svc::sntp;
 
 #[cfg(feature = "ws2812")]
 use smart_leds::{
-    brightness, gamma,
-    hsv::{hsv2rgb, Hsv},
-    SmartLedsWrite, RGB8,
+    brightness, gamma, hsv::{hsv2rgb, Hsv}, SmartLedsWrite,
+    RGB8,
 };
 #[cfg(feature = "ws2812")]
 use smart_leds_trait::SmartLedsWrite;
@@ -167,20 +166,15 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     // Only determine local sunrise/sunset times once because we can rely
     // on the fact that we are rebooting every night!
     let (lat, lon) = (state.config.lat, state.config.lon);
-    let s_hemisphere = lat < 0.0;
-    let local = Utc::now().with_timezone(&tz);
-    let (sunrise, sunset) = sunrise::sunrise_sunset(
-        lat as f64,
-        lon as f64,
-        local.year(),
-        local.month(),
-        local.day(),
-    );
-    let sunrise_t = DateTime::from_timestamp(sunrise, 0)
-        .unwrap_or_default()
+    let local_t = Utc::now().with_timezone(&tz);
+
+    let coords = sunrise::Coordinates::new(lat as f64, lon as f64).unwrap();
+    let solarday = sunrise::SolarDay::new(coords, local_t.date_naive());
+    let sunrise_t = solarday
+        .event_time(sunrise::SolarEvent::Sunrise)
         .with_timezone(&tz);
-    let sunset_t = DateTime::from_timestamp(sunset, 0)
-        .unwrap_or_default()
+    let sunset_t = solarday
+        .event_time(sunrise::SolarEvent::Sunset)
         .with_timezone(&tz);
 
     // finally, move to the main clock display loop
@@ -215,7 +209,6 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             MyLang::Eng => WEEKDAY_EN[wday_index],
             MyLang::Fin => WEEKDAY_FI[wday_index],
         };
-        let month = local.month();
 
         // Right after 04:42 local time, we are resetting
         if hour == 4 && min == 42 && (0..10).contains(&sec) {
@@ -228,16 +221,8 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         if let Some(dir) = time_vscroll {
             // adjust display brightness for time of day
 
-            let daylight = if sunrise == 0 || sunset == 0 {
-                // special handling for areas above arctic circle or below antarctic circle
-                match month {
-                    4..=9 => true ^ s_hemisphere,
-                    _ => false ^ s_hemisphere,
-                }
-            } else {
-                local > sunrise_t && local < sunset_t
-            };
-            // info!("Daylight: {daylight}");
+            let daylight = local > sunrise_t && local < sunset_t;
+            info!("Daylight: {daylight}");
 
             for i in 0..8 {
                 let intensity = if daylight {

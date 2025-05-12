@@ -3,17 +3,16 @@
 #![warn(clippy::large_futures)]
 
 use chrono_tz::Etc::UTC;
-use esp_idf_hal::delay::FreeRtos;
-use esp_idf_hal::gpio::Pull;
+use esp_idf_hal::{delay::FreeRtos, gpio::Pull};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
-use esp_idf_sys::{esp, esp_app_desc};
+use esp_idf_sys::esp;
 use one_wire_bus::OneWire;
 
 use esp32clock::*;
 
-esp_app_desc!();
+// esp_app_desc!();
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();

@@ -70,7 +70,7 @@ impl<'a> WifiLoop<'a> {
         *self.state.ping_ip.write().await = Some(ip_info.subnet.gateway);
         *self.state.wifi_up.write().await = true;
 
-        self.stay_connected().await
+        Box::pin(self.stay_connected()).await
     }
 
     pub async fn configure(&mut self) -> anyhow::Result<()> {

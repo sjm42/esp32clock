@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "esp32clock"
-version = "1.7.2"
+version = "1.7.3"
 dependencies = [
  "anyhow",
  "askama",
@@ -1978,9 +1978,9 @@ dependencies = [
 
 [[package]]
 name = "sunrise"
-version = "1.2.1"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08871f1db1390f915b7bb2ab2f1ac7370e8c78667857a15ae5cfea25da3262f2"
+checksum = "0733c9f1eaa06ed6d103d88e21f784449d08a6733c2ca2b39381cbcbcfe89272"
 dependencies = [
  "chrono",
 ]
