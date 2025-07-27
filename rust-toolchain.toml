@@ -6,6 +6,6 @@ channel = "nightly"
 components = ["rust-src"]
 
 # For ESP32 use:
-#channel = "esp"
+# channel = "esp"
 
 # EOF

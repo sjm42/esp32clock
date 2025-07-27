@@ -12,6 +12,12 @@ use one_wire_bus::OneWire;
 
 use esp32clock::*;
 
+// DANGER! DO NOT USE THIS until esp-idf-svc supports newer versions of ESP-IDF
+// - until then, only up to esp-idf 5.3.2 is supported with esp_app_desc!()
+// Without the macro usage up to esp-idf v5.4.2 is supported.
+// ESP-IDF version 5.5 requires updated esp-idf-svc crate to be released.
+
+// use esp_idf_sys::esp_app_desc;
 // esp_app_desc!();
 
 fn main() -> anyhow::Result<()> {
