@@ -8,6 +8,9 @@ use esp_idf_sys::EspError;
 
 use crate::*;
 
+const TOPIC_ALL_DISPLAYS: &str = "esp32clock-all-displays";
+const TOPIC_ALL_MSG: &str = "esp32clock-all-msg";
+
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     if !state.config.mqtt_enable {
         info!("Temp is disabled.");
@@ -65,7 +68,8 @@ async fn subscribe_publish(
 ) -> anyhow::Result<()> {
     info!("MQTT subscribing...");
     for t in [
-        "esp32clock-all",
+        TOPIC_ALL_MSG,
+        TOPIC_ALL_DISPLAYS,
         &state.myid.read().await,
         &state.config.mqtt_topic,
     ] {
@@ -148,6 +152,19 @@ async fn event_loop(
                         info!("Got temp: {t:?}");
                         *state.temp.write().await = t.temperature;
                         *state.temp_t.write().await = Utc::now().timestamp();
+                    }
+                }
+                continue;
+            }
+
+            if state.config.display_shutoff_enable && topic == TOPIC_ALL_DISPLAYS {
+                match serde_json::from_slice::<DisplayEnabled>(data) {
+                    Err(e) => {
+                        error!("Display JSON error: {e}");
+                    }
+                    Ok(d_enabled) => {
+                        info!("Got display command: {d_enabled:?}");
+                        *state.display_enabled.write().await = d_enabled.state;
                     }
                 }
                 continue;

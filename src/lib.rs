@@ -1,12 +1,10 @@
 // lib.rs
 
-#![feature(round_char_boundary)]
-#![warn(clippy::large_futures)]
+// #![feature(round_char_boundary)]
+// #![warn(clippy::large_futures)]
 
 // #![allow(unused_imports)]
 // #![allow(unused_variables)]
-// #![allow(unused_mut)]
-// #![allow(dead_code)]
 
 pub use std::{
     fmt, net,
@@ -27,8 +25,10 @@ pub use esp_idf_hal::{
 };
 pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
 pub use serde::Deserialize;
-pub use tokio::sync::RwLock;
-pub use tokio::time::{sleep, Duration};
+pub use tokio::{
+    sync::RwLock,
+    time::{sleep, Duration},
+};
 pub use tracing::*;
 
 pub use apiserver::*;
@@ -52,6 +52,11 @@ pub struct Temperature {
 #[derive(Debug, Deserialize)]
 pub struct MyMessage {
     msg: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DisplayEnabled {
+    state: bool,
 }
 
 pub const FW_VERSION: &str = env!("CARGO_PKG_VERSION");

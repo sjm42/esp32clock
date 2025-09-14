@@ -12,7 +12,7 @@ use smart_leds_trait::SmartLedsWrite;
 
 use crate::*;
 
-const DEFAULT_VSCROLLD: u8 = 20;
+const DEFAULT_VSCROLLD: u16 = 20;
 const CONFIG_RESET_COUNT: i32 = 9;
 
 // #[allow(unused_variables)]
@@ -179,10 +179,25 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
     // finally, move to the main clock display loop
     let mut time_vscroll = Some(true);
+    let mut display_is_turned_off = false;
     loop {
         if time_vscroll.is_none() {
-            sleep(Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(500)).await;
         }
+
+        #[cfg(feature = "max7219")]
+        if !*state.display_enabled.read().await {
+            // our display is disabled, shut it down
+            time_vscroll = None;
+            if !display_is_turned_off {
+                Box::pin(disp.turn_off(500, &mut led_mat)).await;
+                display_is_turned_off = true;
+            }
+
+            // we short-circuit the loop here until display is turned on again
+            continue;
+        }
+        display_is_turned_off = false;
 
         {
             // is reset requested?
@@ -230,6 +245,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                 } else {
                     state.config.led_intensity_night
                 };
+                led_mat.power_on().ok();
                 led_mat.set_intensity(i, intensity).ok();
             }
 

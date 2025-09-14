@@ -7,7 +7,6 @@ use encoding_rs::*;
 
 use crate::*;
 
-
 const ELEMS: usize = 8;
 const MAX_TEXT_SIZE: usize = 256;
 
@@ -101,11 +100,11 @@ impl MyDisplay {
     }
 
     #[cfg(feature = "max7219")]
-    pub async fn marquee<S>(&mut self, delay: u8, led_mat: &mut LedMatrix<'_>, s: S)
+    pub async fn marquee<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
     {
-        let delay = std::cmp::max(1, delay as u64);
+        let delay = std::cmp::max(1, delay_ms as u64);
 
         // truncate too long strings
         let c_count = s.as_ref().chars().count();
@@ -140,6 +139,8 @@ impl MyDisplay {
 
         for _ in 0..dlen * 8 {
             for d in 0..dlen {
+                // sigh, false alarm
+                #[allow(clippy::needless_range_loop)]
                 for r in 0..8 {
                     dbuf[d][r] <<= 1;
                     if d < dlen - 1 && dbuf[d + 1][r] & 0x80 != 0 {
@@ -158,11 +159,11 @@ impl MyDisplay {
     }
 
     #[cfg(feature = "max7219")]
-    pub async fn vscroll<S>(&mut self, delay: u8, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
+    pub async fn vscroll<S>(&mut self, delay_ms: u16, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
     {
-        let delay = std::cmp::max(1, delay as u64);
+        let delay = std::cmp::max(1, delay_ms as u64);
 
         // truncate too long strings
         let c_count = s.as_ref().chars().count();
@@ -224,9 +225,71 @@ impl MyDisplay {
     }
 
     #[cfg(feature = "max7219")]
+    pub async fn turn_off(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>) {
+        let delay = std::cmp::max(1, delay_ms as u64);
+
+        #[rustfmt::skip]
+        let animation: [[u8; 8]; 5] = [
+            [0b10011001,
+             0b01100110,
+             0b10111101,
+             0b11111111,
+             0b11111111,
+             0b10111101,
+             0b01100110,
+             0b10011001,],
+            [0b00000000,
+             0b10011001,
+             0b01100110,
+             0b10111101,
+             0b10111101,
+             0b01100110,
+             0b10011001,
+             0b00000000,],
+            [0b00000000,
+             0b00000000,
+             0b10011001,
+             0b01100110,
+             0b01100110,
+             0b10011001,
+             0b00000000,
+             0b00000000,],
+            [0b00000000,
+             0b00000000,
+             0b00000000,
+             0b10011001,
+             0b10011001,
+             0b00000000,
+             0b00000000,
+             0b00000000,],
+            [0b00000000,
+             0b00000000,
+             0b00000000,
+             0b00000000,
+             0b00000000,
+             0b00000000,
+             0b00000000,
+             0b00000000,],
+        ];
+        let mut dbuf = [[0u8; 8]; ELEMS];
+
+        for anim in &animation {
+            for c in dbuf.iter_mut() {
+                *c = *anim;
+            }
+            self.show_buf(&dbuf, led_mat);
+            sleep(Duration::from_millis(delay)).await;
+        }
+        for i in 0..ELEMS {
+            led_mat.clear_display(i).ok();
+            led_mat.power_off().ok();
+        }
+    }
+
+    #[cfg(feature = "max7219")]
     pub async fn message<S>(
         &mut self,
-        delay: u8,
+        delay_ms: u16,
         led_mat: &mut LedMatrix<'_>,
         msg: S,
         lang: &MyLang,
@@ -237,7 +300,7 @@ impl MyDisplay {
             MyLang::Eng => "Message!",
             MyLang::Fin => "-Viesti!",
         };
-        Box::pin(self.vscroll(delay, false, led_mat, v)).await;
+        Box::pin(self.vscroll(delay_ms, false, led_mat, v)).await;
         sleep(Duration::from_millis(1000)).await;
 
         for _ in 0..4 {
@@ -250,10 +313,10 @@ impl MyDisplay {
             sleep(Duration::from_millis(200)).await;
         }
 
-        Box::pin(self.vscroll(delay, true, led_mat, msg.as_ref())).await;
+        Box::pin(self.vscroll(delay_ms, true, led_mat, msg.as_ref())).await;
         sleep(Duration::from_millis(1000)).await;
 
-        Box::pin(self.marquee(delay, led_mat, msg.as_ref())).await;
+        Box::pin(self.marquee(delay_ms, led_mat, msg.as_ref())).await;
     }
 }
 
