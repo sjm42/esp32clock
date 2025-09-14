@@ -13,6 +13,7 @@ var postCfgDataAsJson = async ({
     formObj.v4dhcp = (formObj.v4dhcp === "on");
     formObj.mqtt_enable = (formObj.mqtt_enable === "on");
     formObj.sensor_enable = (formObj.sensor_enable === "on");
+    formObj.display_shutoff_enable = (formObj.display_shutoff_enable === "on");
     //convert floats
     formObj.lat = parseFloat(formObj.lat);
     formObj.lon = parseFloat(formObj.lon);
