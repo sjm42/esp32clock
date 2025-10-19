@@ -4,6 +4,7 @@
 
 use chrono_tz::Etc::UTC;
 use esp_idf_hal::{delay::FreeRtos, gpio::Pull};
+use esp_idf_svc::ota::EspOta;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
@@ -40,6 +41,11 @@ fn main() -> anyhow::Result<()> {
     // and any small change to the code will likely fix it.
     info!("Hello.");
     info!("Starting up, firmare version {}", FW_VERSION);
+    {
+        let ota = EspOta::new()?;
+        let running_slot = ota.get_running_slot()?;
+        info!("Firmware slot: {:?}", running_slot.state);
+    }
 
     let sysloop = EspSystemEventLoop::take()?;
     let timer = EspTaskTimerService::new()?;

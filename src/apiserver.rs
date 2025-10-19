@@ -3,13 +3,18 @@
 use askama::Template;
 use axum::{
     body::Body,
-    extract::State,
+    extract::{Form, State},
     http::{header, Response, StatusCode},
     response::{Html, IntoResponse},
     routing::*,
     Json,
 };
 pub use axum_macros::debug_handler;
+
+use embedded_svc::http::client::Client as HttpClient;
+use esp_idf_svc::http::client::EspHttpConnection;
+use esp_idf_svc::io;
+use esp_idf_svc::ota::EspOta;
 
 pub use crate::*;
 
@@ -30,8 +35,9 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
         .route("/form.js", get(get_formjs))
         .route("/msg", post(send_msg).options(options))
         .route("/tz", get(list_timezones))
-        .route("/conf", get(get_conf).post(set_conf).options(options))
-        .route("/reset_conf", get(reset_conf))
+        .route("/config", get(get_config).post(set_config).options(options))
+        .route("/reset_config", get(reset_config))
+        .route("/fw", post(update_fw).options(options))
         .with_state(state);
     // .layer(TraceLayer::new_for_http());
 
@@ -145,7 +151,7 @@ pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Resp
     (StatusCode::OK, tz_s).into_response()
 }
 
-pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+pub async fn get_config(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     let cnt = {
         let mut c = state.api_cnt.write().await;
         *c += 1;
@@ -156,7 +162,7 @@ pub async fn get_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<B
     (StatusCode::OK, Json(state.config.clone())).into_response()
 }
 
-pub async fn set_conf(
+pub async fn set_config(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(mut config): Json<MyConfig>,
 ) -> Response<Body> {
@@ -199,10 +205,10 @@ pub async fn set_conf(
     config.led_intensity_day = config.led_intensity_day.min(15);
 
     info!("Saving new config to nvs...");
-    Box::pin(save_conf(state, config)).await
+    Box::pin(save_config(state, config)).await
 }
 
-pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+pub async fn reset_config(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
     let cnt = {
         let mut c = state.api_cnt.write().await;
         *c += 1;
@@ -211,10 +217,10 @@ pub async fn reset_conf(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response
     info!("#{cnt} reset_conf()");
 
     info!("Saving  default config to nvs...");
-    Box::pin(save_conf(state, MyConfig::default())).await
+    Box::pin(save_config(state, MyConfig::default())).await
 }
 
-async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Response<Body> {
+async fn save_config(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Response<Body> {
     let mut nvs = state.nvs.write().await;
     match config.to_nvs(&mut nvs) {
         Ok(_) => {
@@ -229,4 +235,31 @@ async fn save_conf(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Response<
         }
     }
 }
+
+async fn update_fw(
+    State(_state): State<Arc<Pin<Box<MyState>>>>,
+    Form(fw_update): Form<UpdateFirmware>,
+) -> Response<Body> {
+    info!("Firmware update: \n{fw_update:#?}");
+
+    let mut ota = EspOta::new().unwrap();
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default()).unwrap());
+
+    let req = client.get(fw_update.url.as_str()).unwrap();
+    let resp = req.submit().unwrap();
+    if resp.status() != StatusCode::OK {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    let mut update = ota.initiate_update().unwrap();
+    let mut buffer = [0_u8; 8192];
+    io::utils::copy(resp, &mut update, &mut buffer).unwrap();
+    info!("Update done. Restarting...");
+    update.complete().unwrap();
+    esp_idf_svc::hal::reset::restart();
+
+    // not reached
+    // StatusCode::OK.into_response()
+}
+
 // EOF

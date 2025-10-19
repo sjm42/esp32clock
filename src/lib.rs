@@ -59,6 +59,11 @@ pub struct DisplayEnabled {
     state: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateFirmware {
+    url: String,
+}
+
 pub const FW_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const SPIN: [char; 4] = ['|', '/', '-', '\\'];

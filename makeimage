@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+set -x
+espflash save-image --chip esp32c3 ./target/riscv32imc-esp-espidf/release/esp32clock firmware.bin
+# EOF

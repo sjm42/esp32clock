@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "1.8.1"
+version = "2.0.0"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2024"
 resolver = "2"
@@ -26,11 +26,11 @@ ws2812 = ["dep:smart-leds", "dep:smart-leds-trait"]
 [dependencies]
 anyhow = "1"
 askama = "0"
-axum = { version = "0", features = ["http1", "json"] }
+axum = { version = "0", features = ["http1", "json", "form"] }
 axum-macros = "0"
 bit_reverse = "0"
 chrono = "0"
-chrono-tz = "0"
+chrono-tz = { version = "0", features = ["filter-by-regex"] }
 crc = "3"
 ds18b20 = { git = "https://github.com/sjm42/ds18b20" }
 embedded-hal = "1"
@@ -63,7 +63,7 @@ anyhow = "1"
 
 [profile.release]
 debug = false
-opt-level = "s"
+opt-level = "z"
 codegen-units = 1
 lto = "fat"
 strip = true

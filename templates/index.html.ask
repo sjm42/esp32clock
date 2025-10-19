@@ -64,5 +64,11 @@
     <input type="submit" value="Submit">
 </form>
 <hr>
+<h2>Update firmware (DANGER)</h2>
+<form action="/fw" method="POST" name="esp32fw">
+  <input type="text" id="firmware" name="url">
+  <input type="submit" value="Update!">
+</form>
+<hr>
 </body>
 </html>
