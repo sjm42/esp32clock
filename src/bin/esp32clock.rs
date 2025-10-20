@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
     {
         let ota = EspOta::new()?;
         let running_slot = ota.get_running_slot()?;
-        info!("Firmware slot: {:?}", running_slot.state);
+        info!("Firmware slot: {} ({:?})", &running_slot.label, running_slot.state);
     }
 
     let sysloop = EspSystemEventLoop::take()?;
