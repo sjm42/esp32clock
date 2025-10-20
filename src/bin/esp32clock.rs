@@ -42,8 +42,9 @@ fn main() -> anyhow::Result<()> {
     info!("Hello.");
     info!("Starting up, firmare version {}", FW_VERSION);
     {
-        let ota = EspOta::new()?;
+        let mut ota = EspOta::new()?;
         let running_slot = ota.get_running_slot()?;
+        ota.mark_running_slot_valid()?;
         info!("Firmware slot: {} ({:?})", &running_slot.label, running_slot.state);
     }
 
