@@ -4,9 +4,9 @@
 
 use chrono_tz::Etc::UTC;
 use esp_idf_hal::{delay::FreeRtos, gpio::Pull};
-use esp_idf_svc::ota::EspOta;
 use esp_idf_svc::{
-    eventloop::EspSystemEventLoop, nvs, ping, timer::EspTaskTimerService, wifi::WifiDriver,
+    eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService,
+    wifi::WifiDriver,
 };
 use esp_idf_sys::esp;
 use one_wire_bus::OneWire;
