@@ -38,7 +38,7 @@
                     ("text", "led_intensity_night", led_intensity_night.to_string(), "Nighttime display brightness (0-15)"),
                     ("checkbox", "display_shutoff_enable", display_shutoff_enable.to_string(), "Enable display shutoff")
                 ] -%}
-<form action="/conf" method="POST" name="esp32cfg">
+<form action="/config" method="POST" name="esp32cfg">
     <table>
     {%- for (itype, name, value, descr) in myform %}
             <tr>
