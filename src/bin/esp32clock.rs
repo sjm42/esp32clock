@@ -41,12 +41,14 @@ fn main() -> anyhow::Result<()> {
     // and any small change to the code will likely fix it.
     info!("Hello.");
     info!("Starting up, firmare version {}", FW_VERSION);
-    {
+    let ota_slot = {
         let mut ota = EspOta::new()?;
         let running_slot = ota.get_running_slot()?;
         ota.mark_running_slot_valid()?;
-        info!("Firmware slot: {} ({:?})", &running_slot.label, running_slot.state);
-    }
+        let ota_slot = format!("{} ({:?})", &running_slot.label, running_slot.state);
+        info!("OTA slot: {ota_slot}");
+        ota_slot
+    };
 
     let sysloop = EspSystemEventLoop::take()?;
     let timer = EspTaskTimerService::new()?;
@@ -91,7 +93,7 @@ fn main() -> anyhow::Result<()> {
         UTC
     });
 
-    let peripherals = Peripherals::take().unwrap();
+    let peripherals = Peripherals::take()?;
     let pins = peripherals.pins;
     let rmt = peripherals.rmt.channel0;
 
@@ -113,8 +115,8 @@ fn main() -> anyhow::Result<()> {
     let onewire_addr = if config.sensor_enable {
         info!("Sensor: scanning 1-wire devices...");
 
-        let mut pin_drv = gpio::PinDriver::input_output_od(&mut onewire).unwrap();
-        pin_drv.set_pull(Pull::Up).unwrap();
+        let mut pin_drv = gpio::PinDriver::input_output_od(&mut onewire)?;
+        pin_drv.set_pull(Pull::Up)?;
         let mut w = OneWire::new(pin_drv).unwrap();
 
         if let Ok(a) = scan_1wire(&mut w) {
@@ -134,6 +136,7 @@ fn main() -> anyhow::Result<()> {
         nvs,
         onewire_addr,
         tz,
+        ota_slot,
         mypins,
         onewire_pin,
     ));

@@ -10,6 +10,8 @@
 <body>
 <h1>ESP32 clock</h1>
 <p>Firmware version {{ crate::FW_VERSION }}</p>
+<p>OTA slot {{ askama::get_value::<String>("ota_slot")? }}</p>
+
 <h2>Settings</h2>
 {% let myform = [
                     ("text", "port", port.to_string(), "Port (1-65535)"),

@@ -1,7 +1,7 @@
 // lib.rs
 
 // #![feature(round_char_boundary)]
-// #![warn(clippy::large_futures)]
+#![warn(clippy::large_futures)]
 
 // #![allow(unused_imports)]
 // #![allow(unused_variables)]
@@ -9,8 +9,9 @@
 pub use std::{
     fmt, net,
     net::{Ipv4Addr, SocketAddr},
+    pin::Pin,
+    sync::Arc,
 };
-pub use std::{pin::Pin, sync::Arc};
 
 #[cfg(feature = "max7219")]
 use max7219::{connectors::SpiConnector, MAX7219};

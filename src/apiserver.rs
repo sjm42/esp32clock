@@ -10,11 +10,9 @@ use axum::{
     Json,
 };
 pub use axum_macros::debug_handler;
-
 use embedded_svc::http::client::Client as HttpClient;
-use esp_idf_svc::http::client::EspHttpConnection;
-use esp_idf_svc::io;
-use esp_idf_svc::ota::EspOta;
+use esp_idf_svc::{http::client::EspHttpConnection, io, ota::EspOta};
+use std::any::Any;
 
 pub use crate::*;
 
@@ -73,7 +71,8 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
     };
     info!("#{cnt} get_index()");
 
-    let index = match state.config.clone().render() {
+    let value_tuple: (&str, &dyn Any) = ("ota_slot", &state.ota_slot.clone());
+    let index = match state.config.clone().render_with_values(&value_tuple) {
         Err(e) => {
             let err_msg = format!("Index template error: {e:?}\n");
             error!("{err_msg}");

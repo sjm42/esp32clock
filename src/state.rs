@@ -29,6 +29,7 @@ pub struct MyState {
     pub config: MyConfig,
     pub onewire_addr: Address,
     pub tz: Tz,
+    pub ota_slot: String,
 
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
     pub pins: RwLock<Option<MyPins>>,
@@ -55,6 +56,7 @@ impl MyState {
         nvs: nvs::EspNvs<nvs::NvsDefault>,
         onewire_addr: Address,
         tz: Tz,
+        ota_slot: String,
         pins: MyPins,
         onewire_pin: MyOnewire,
     ) -> Self {
@@ -62,6 +64,7 @@ impl MyState {
             config,
             onewire_addr,
             tz,
+            ota_slot,
 
             nvs: RwLock::new(nvs),
             pins: RwLock::new(Some(pins)),
