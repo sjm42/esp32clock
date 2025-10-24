@@ -28,6 +28,7 @@ pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
 pub use serde::Deserialize;
 pub use tokio::{
     sync::RwLock,
+    task,
     time::{sleep, Duration},
 };
 pub use tracing::*;

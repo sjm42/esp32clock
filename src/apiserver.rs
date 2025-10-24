@@ -240,21 +240,24 @@ async fn update_fw(
     Form(fw_update): Form<UpdateFirmware>,
 ) -> Response<Body> {
     info!("Firmware update: \n{fw_update:#?}");
+    let url = fw_update.url.to_owned();
 
     let mut ota = EspOta::new().unwrap();
     let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default()).unwrap());
-
-    let req = client.get(fw_update.url.as_str()).unwrap();
+    let req = client.get(&url).unwrap();
     let resp = req.submit().unwrap();
     if resp.status() != StatusCode::OK {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        return StatusCode::from_u16(resp.status()).unwrap().into_response();
     }
 
+    let update_src = Box::new(resp);
     let mut update = ota.initiate_update().unwrap();
     let mut buffer = [0_u8; 8192];
-    io::utils::copy(resp, &mut update, &mut buffer).unwrap();
-    info!("Update done. Restarting...");
+
+    io::utils::copy(update_src, &mut update, &mut buffer).unwrap();
     update.complete().unwrap();
+
+    info!("Update done. Restarting...");
     esp_idf_svc::hal::reset::restart();
 
     // not reached
