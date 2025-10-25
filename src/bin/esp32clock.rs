@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
     // this means that the code size is not 32bit aligned
     // and any small change to the code will likely fix it.
     info!("Hello.");
-    info!("Starting up, firmare version {}", FW_VERSION);
+    info!("Starting up, firmware version {}", FW_VERSION);
     let ota_slot = {
         let mut ota = EspOta::new()?;
         let running_slot = ota.get_running_slot()?;

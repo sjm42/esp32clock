@@ -41,19 +41,20 @@
 <form action="/config" method="POST" name="esp32cfg">
     <table>
     {%- for (itype, name, value, descr) in myform %}
-            <tr>
-    {%- if *itype == "checkbox" %}
-                <th><label for="{{name}}">{{descr}}:</label></th>
-                <th><input name="{{name}}" type="{{itype}}"{% if value == "true" %} checked{% endif %}></th>
-    {%- else %}
-                <th><label for="{{name}}">{{descr}}:</label></th>
-                <th><input name="{{name}}" type="{{itype}}" value="{{value}}"></th>
-    {%- endif %}
+        <tr>
+        {%- if *itype == "checkbox" %}
+            <th><label for="{{name}}">{{descr}}:</label></th>
+            <th><input name="{{name}}" type="{{itype}}"{% if value == "true" %} checked{% endif %}></th>
+        {%- else %}
+            <th><label for="{{name}}">{{descr}}:</label></th>
+            <th><input name="{{name}}" type="{{itype}}" value="{{value}}"></th>
+        {%- endif %}
             </tr>
     {%- endfor %}
     </table>
     <input type="submit" value="Submit">
 </form>
+
 <hr>
 <h2>Send message</h2>
 <form action="/msg" method="POST" name="esp32msg">
@@ -65,11 +66,12 @@
     </table>
     <input type="submit" value="Submit">
 </form>
+
 <hr>
 <h2>Update firmware (DANGER)</h2>
 <form action="/fw" method="POST" name="esp32fw">
-  <input type="text" id="firmware" name="url">
-  <input type="submit" value="Update!">
+    <input type="text" id="firmware" name="url">
+    <input type="submit" value="Update!">
 </form>
 <hr>
 </body>
