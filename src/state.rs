@@ -7,6 +7,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::nvs;
 use one_wire_bus::Address;
+use std::sync::atomic::AtomicU32;
 
 use crate::*;
 
@@ -39,7 +40,7 @@ pub struct MyState {
     pub ip_addr: RwLock<Ipv4Addr>,
     pub ping_ip: RwLock<Option<Ipv4Addr>>,
     pub myid: RwLock<String>,
-    pub api_cnt: RwLock<u64>,
+    pub api_cnt: AtomicU32,
     pub display_enabled: RwLock<bool>,
     pub temp: RwLock<f32>,
     pub temp_t: RwLock<i64>,
@@ -74,7 +75,7 @@ impl MyState {
             ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
             ping_ip: RwLock::new(None),
             myid: RwLock::new("esp32clock".into()),
-            api_cnt: RwLock::new(0),
+            api_cnt: 0.into(),
             display_enabled: RwLock::new(true),
             temp: RwLock::new(NO_TEMP),
             temp_t: RwLock::new(0),

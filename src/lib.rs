@@ -10,7 +10,10 @@ pub use std::{
     fmt, net,
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 #[cfg(feature = "max7219")]

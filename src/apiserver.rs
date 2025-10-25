@@ -45,11 +45,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
 }
 
 pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} options()");
 
     (
@@ -64,11 +60,7 @@ pub async fn options(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Bo
 }
 
 pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} get_index()");
 
     let value_tuple: (&str, &dyn Any) = ("ota_slot", &state.ota_slot.clone());
@@ -84,11 +76,7 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
 }
 
 pub async fn get_favicon(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} get_favicon()");
 
     let favicon = include_bytes!("favicon.ico");
@@ -101,11 +89,7 @@ pub async fn get_favicon(State(state): State<Arc<Pin<Box<MyState>>>>) -> Respons
 }
 
 pub async fn get_formjs(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} get_formjs()");
 
     let formjs = include_bytes!("form.js");
@@ -121,11 +105,7 @@ pub async fn send_msg(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(message): Json<MyMessage>,
 ) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} send_msg()");
 
     let msg = message.msg;
@@ -135,11 +115,7 @@ pub async fn send_msg(
 }
 
 pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} send_msg()");
 
     // yes, it's almost 10 KiB so alloc it already
@@ -151,13 +127,8 @@ pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Resp
 }
 
 pub async fn get_config(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} get_conf()");
-
     (StatusCode::OK, Json(state.config.clone())).into_response()
 }
 
@@ -165,11 +136,7 @@ pub async fn set_config(
     State(state): State<Arc<Pin<Box<MyState>>>>,
     Json(mut config): Json<MyConfig>,
 ) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} set_conf()");
 
     if config.v4mask > 30 {
@@ -208,11 +175,7 @@ pub async fn set_config(
 }
 
 pub async fn reset_config(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
-    let cnt = {
-        let mut c = state.api_cnt.write().await;
-        *c += 1;
-        *c
-    };
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} reset_conf()");
 
     info!("Saving  default config to nvs...");
@@ -236,9 +199,12 @@ async fn save_config(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Respons
 }
 
 async fn update_fw(
-    State(_state): State<Arc<Pin<Box<MyState>>>>,
+    State(state): State<Arc<Pin<Box<MyState>>>>,
     Form(fw_update): Form<UpdateFirmware>,
 ) -> Response<Body> {
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
+    info!("#{cnt} update_fw()");
+
     info!("Firmware update: \n{fw_update:#?}");
     let url = fw_update.url.to_owned();
 

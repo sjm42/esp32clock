@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "2.0.7"
+version = "2.0.8"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2024"
 resolver = "2"
