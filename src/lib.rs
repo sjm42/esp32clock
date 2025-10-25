@@ -11,7 +11,7 @@ pub use std::{
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, Ordering},
         Arc,
     },
 };
