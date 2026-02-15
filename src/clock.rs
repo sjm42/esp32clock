@@ -1,7 +1,6 @@
 // clock.rs
 
 use esp_idf_svc::sntp;
-
 #[cfg(feature = "ws2812")]
 use smart_leds::{
     brightness, gamma, hsv::{hsv2rgb, Hsv}, SmartLedsWrite,
@@ -64,7 +63,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             pins.spi,
             pins.sclk,
             pins.sdo,
-            None::<AnyInputPin>,
+            None::<gpio::AnyInputPin>,
             &spi::SpiDriverConfig::new(),
         )?;
         let spiconfig = spi::config::Config::new().baudrate(10.MHz().into());
@@ -170,12 +169,8 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
     let coords = sunrise::Coordinates::new(lat as f64, lon as f64).unwrap();
     let solarday = sunrise::SolarDay::new(coords, local_t.date_naive());
-    let sunrise_t = solarday
-        .event_time(sunrise::SolarEvent::Sunrise)
-        .with_timezone(&tz);
-    let sunset_t = solarday
-        .event_time(sunrise::SolarEvent::Sunset)
-        .with_timezone(&tz);
+    let sunrise_t = solarday.event_time(sunrise::SolarEvent::Sunrise).with_timezone(&tz);
+    let sunset_t = solarday.event_time(sunrise::SolarEvent::Sunset).with_timezone(&tz);
 
     // finally, move to the main clock display loop
     let mut time_vscroll = Some(true);
@@ -299,8 +294,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                         #[cfg(feature = "max7219")]
                         {
                             let temp_s = format!("{t:+.1}°C");
-                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s))
-                                .await;
+                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
                             sleep(Duration::from_millis(1500)).await;
                         }
 
@@ -325,7 +319,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 #[cfg(feature = "max7219")]
 async fn reset_button<'a, 'b>(
     state: &mut Arc<std::pin::Pin<Box<MyState>>>,
-    button: &PinDriver<'a, AnyInputPin, Input>,
+    button: &gpio::PinDriver<'a, gpio::AnyInputPin, gpio::Input>,
     led_mat: &mut MAX7219<SpiConnector<SpiDeviceDriver<'b, spi::SpiDriver<'b>>>>,
 ) -> anyhow::Result<()> {
     let mut reset_cnt = CONFIG_RESET_COUNT;

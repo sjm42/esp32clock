@@ -140,10 +140,7 @@ impl MyConfig {
                 bail!("{estr}");
             }
         };
-        info!(
-            "Encoded config to {sz} bytes. Saving to nvs...",
-            sz = nvsdata.len()
-        );
+        info!("Encoded config to {sz} bytes. Saving to nvs...", sz = nvsdata.len());
 
         match nvs.set_raw(CONFIG_NAME, nvsdata) {
             Ok(_) => {

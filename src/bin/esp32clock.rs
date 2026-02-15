@@ -3,15 +3,16 @@
 #![warn(clippy::large_futures)]
 
 use chrono_tz::Etc::UTC;
-use esp_idf_hal::{delay::FreeRtos, gpio::Pull};
+use esp32clock::*;
+use esp_idf_hal::{
+    delay::FreeRtos,
+    gpio::{IOPin, InputPin, OutputPin, Pull},
+};
 use esp_idf_svc::{
-    eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService,
-    wifi::WifiDriver,
+    eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
 use esp_idf_sys::esp;
 use one_wire_bus::OneWire;
-
-use esp32clock::*;
 
 // DANGER! DO NOT USE THIS until esp-idf-svc supports newer versions of ESP-IDF
 // - until then, only up to esp-idf 5.3.2 is supported with esp_app_desc!()
@@ -142,11 +143,7 @@ fn main() -> anyhow::Result<()> {
     ));
     let shared_state = Arc::new(state);
 
-    let wifidriver = WifiDriver::new(
-        peripherals.modem,
-        sysloop.clone(),
-        Some(nvs_default_partition),
-    )?;
+    let wifidriver = WifiDriver::new(peripherals.modem, sysloop.clone(), Some(nvs_default_partition))?;
 
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

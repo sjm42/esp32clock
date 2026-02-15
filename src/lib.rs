@@ -16,34 +16,28 @@ pub use std::{
     },
 };
 
+pub use anyhow::bail;
+pub use apiserver::*;
+pub use chrono::*;
+pub use chrono_tz::{Tz, TZ_VARIANTS};
+pub use clock::*;
+pub use config::*;
+pub use display::*;
+pub use esp_idf_hal::{gpio, prelude::*, spi};
+pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
+pub use font::*;
 #[cfg(feature = "max7219")]
 use max7219::{connectors::SpiConnector, MAX7219};
-
-pub use anyhow::bail;
-pub use chrono::*;
-use chrono_tz::{Tz, TZ_VARIANTS};
-pub use esp_idf_hal::{
-    gpio::{self, *},
-    prelude::*,
-    spi,
-};
-pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
+pub use mqtt::*;
+pub use onewire::*;
 pub use serde::Deserialize;
+pub use state::*;
 pub use tokio::{
     sync::RwLock,
     task,
     time::{sleep, Duration},
 };
 pub use tracing::*;
-
-pub use apiserver::*;
-pub use clock::*;
-pub use config::*;
-pub use display::*;
-pub use font::*;
-pub use mqtt::*;
-pub use onewire::*;
-pub use state::*;
 pub use wifi::*;
 
 #[cfg(feature = "max7219")]

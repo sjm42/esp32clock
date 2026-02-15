@@ -99,18 +99,9 @@ impl<'a> WifiLoop<'a> {
                 esp_idf_sys::esp_eap_client_clear_password();
                 esp_idf_sys::esp_eap_client_clear_new_password();
                 // let ret1 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
-                let ret1 = esp_idf_sys::esp_eap_client_set_identity(
-                    username.as_ptr(),
-                    username.len() as i32,
-                );
-                let ret2 = esp_idf_sys::esp_eap_client_set_username(
-                    username.as_ptr(),
-                    username.len() as i32,
-                );
-                let ret3 = esp_idf_sys::esp_eap_client_set_password(
-                    password.as_ptr(),
-                    password.len() as i32,
-                );
+                let ret1 = esp_idf_sys::esp_eap_client_set_identity(username.as_ptr(), username.len() as i32);
+                let ret2 = esp_idf_sys::esp_eap_client_set_username(username.as_ptr(), username.len() as i32);
+                let ret3 = esp_idf_sys::esp_eap_client_set_password(password.as_ptr(), password.len() as i32);
                 // let ret4 = esp_idf_sys::esp_eap_client_set_new_password(password.as_ptr(), password.len() as i32);
                 let ret4 = esp_idf_sys::esp_wifi_sta_enterprise_enable();
 
@@ -139,11 +130,7 @@ impl<'a> WifiLoop<'a> {
             // way too difficult to showcase the core logic of an example and have
             // a proper Wi-Fi event loop without a robust async runtime.  Fortunately, we can do it
             // now!
-            let timeout = if initial {
-                Some(Duration::from_secs(30))
-            } else {
-                None
-            };
+            let timeout = if initial { Some(Duration::from_secs(30)) } else { None };
             Box::pin(wifi.wifi_wait(|w| w.is_up(), timeout)).await.ok();
 
             info!("WiFi connecting...");

@@ -111,12 +111,7 @@ async fn mqtt_send(
     info!("MQTT sending {topic} {data}");
 
     let result = client
-        .publish(
-            topic,
-            mqtt::client::QoS::AtLeastOnce,
-            false,
-            data.as_bytes(),
-        )
+        .publish(topic, mqtt::client::QoS::AtLeastOnce, false, data.as_bytes())
         .await;
     if let Err(e) = result {
         let msg = format!("MQTT send error: {e}");

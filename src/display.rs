@@ -287,13 +287,8 @@ impl MyDisplay {
     }
 
     #[cfg(feature = "max7219")]
-    pub async fn message<S>(
-        &mut self,
-        delay_ms: u16,
-        led_mat: &mut LedMatrix<'_>,
-        msg: S,
-        lang: &MyLang,
-    ) where
+    pub async fn message<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, msg: S, lang: &MyLang)
+    where
         S: AsRef<str>,
     {
         let v = match lang {

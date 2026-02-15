@@ -1,5 +1,7 @@
 // apiserver.rs
 
+use std::any::Any;
+
 use askama::Template;
 use axum::{
     body::Body,
@@ -12,7 +14,6 @@ use axum::{
 pub use axum_macros::debug_handler;
 use embedded_svc::http::client::Client as HttpClient;
 use esp_idf_svc::{http::client::EspHttpConnection, io, ota::EspOta};
-use std::any::Any;
 
 pub use crate::*;
 
@@ -101,10 +102,7 @@ pub async fn get_formjs(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response
         .into_response()
 }
 
-pub async fn send_msg(
-    State(state): State<Arc<Pin<Box<MyState>>>>,
-    Json(message): Json<MyMessage>,
-) -> Response<Body> {
+pub async fn send_msg(State(state): State<Arc<Pin<Box<MyState>>>>, Json(message): Json<MyMessage>) -> Response<Body> {
     let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} send_msg()");
 
