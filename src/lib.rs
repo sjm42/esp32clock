@@ -11,15 +11,15 @@ pub use std::{
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
 };
 
 pub use anyhow::bail;
 pub use apiserver::*;
 pub use chrono::*;
-pub use chrono_tz::{Tz, TZ_VARIANTS};
+pub use chrono_tz::{TZ_VARIANTS, Tz};
 pub use clock::*;
 pub use config::*;
 pub use display::*;
@@ -27,7 +27,7 @@ pub use esp_idf_hal::{gpio, prelude::*, spi};
 pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
 pub use font::*;
 #[cfg(feature = "max7219")]
-use max7219::{connectors::SpiConnector, MAX7219};
+use max7219::{MAX7219, connectors::SpiConnector};
 pub use mqtt::*;
 pub use onewire::*;
 pub use serde::Deserialize;
@@ -35,7 +35,7 @@ pub use state::*;
 pub use tokio::{
     sync::RwLock,
     task,
-    time::{sleep, Duration},
+    time::{Duration, sleep},
 };
 pub use tracing::*;
 pub use wifi::*;

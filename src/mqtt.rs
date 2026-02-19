@@ -45,6 +45,7 @@ pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
                 Ok(c) => c,
                 Err(e) => {
                     error!("MQTT conn failed: {e:?}");
+                    sleep(Duration::from_secs(5)).await;
                     continue;
                 }
             };

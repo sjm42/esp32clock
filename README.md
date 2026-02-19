@@ -20,10 +20,49 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - gateway health check with automatic reboot on connectivity loss
 - hardware button for factory reset
 
+## Build and flash
+
+Toolchain and target are configured in `rust-toolchain.toml` and `.cargo/config.toml`.
+Default target is ESP32-C3 (`riscv32imc-esp-espidf`). For ESP32, switch to the
+commented `xtensa-esp32-espidf` target in `.cargo/config.toml`.
+
+```bash
+# build release firmware
+cargo build -r
+
+# build + flash + serial monitor
+./flash
+
+# build OTA image (firmware.bin)
+./makeimage
+
+# lint and formatting checks
+cargo clippy --all-targets --all-features
+cargo fmt --check
+```
+
+## Cargo features
+
+Default build enables `esp32c3` and `max7219`.
+
+- `esp32s` - ESP32-S variant support
+- `ws2812` - WS2812 LED support (alternative display backend) (NOT WORKING YET)
+- `reset_settings` - reset config at boot
+
+Examples:
+
+```bash
+# default features
+cargo build -r
+
+# ws2812 build
+cargo build -r --no-default-features --features esp32c3,ws2812
+```
+
 ## Hardware
 
-- ESP32-C3 module by WeAct studio with RISC-V cpu is recommended, but the firmware should work on almost any ESP32
-  supporting WiFi
+- ESP32-C3 module by WeAct studio with RISC-V cpu is the default target; ESP32
+  (Xtensa) is also supported by switching target/build settings
 - the partition table uses two OTA slots of ~2 MB each, so 4 MB flash is the minimum
 - if using a different module with different pinout and/or cpu type, the pin config and build parameters must be
   adjusted
@@ -51,6 +90,29 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 
 A configuration web UI is served at the root URL (`/`). It provides a form for editing
 all settings, sending instant messages, and triggering OTA firmware updates.
+
+## Testing and validation
+
+This is an embedded firmware project and the binary uses `harness = false`, so
+there is no standard unit-test flow yet.
+
+Recommended validation:
+
+- static checks: `cargo clippy --all-targets --all-features` and `cargo fmt --check`
+- on-device smoke test via `./flash`:
+  - device boots and syncs time
+  - `/config` GET/POST works
+  - MQTT message/display controls work (if enabled)
+  - optional DS18B20 reading/publishing works (if enabled)
+
+## Build-time environment variables
+
+These can be set before build to override defaults:
+
+- `WIFI_SSID`, `WIFI_PASS` - default WiFi credentials
+- `API_PORT` - default HTTP API port
+- `MCU` - MCU selection helper used by ESP build tooling
+- `CHRONO_TZ_TIMEZONE_FILTER` - timezone list filter (default `Europe/.*`)
 
 ## API and configuration
 

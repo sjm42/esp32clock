@@ -1,7 +1,7 @@
 // config.rs
 
 use askama::Template;
-use crc::{Crc, CRC_32_ISCSI};
+use crc::{CRC_32_ISCSI, Crc};
 use esp_idf_svc::nvs;
 use serde::{Deserialize, Serialize};
 

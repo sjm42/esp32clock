@@ -3,8 +3,8 @@
 use esp_idf_svc::sntp;
 #[cfg(feature = "ws2812")]
 use smart_leds::{
-    brightness, gamma, hsv::{hsv2rgb, Hsv}, SmartLedsWrite,
-    RGB8,
+    RGB8, SmartLedsWrite, brightness, gamma,
+    hsv::{Hsv, hsv2rgb},
 };
 #[cfg(feature = "ws2812")]
 use smart_leds_trait::SmartLedsWrite;
@@ -48,7 +48,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
                     sat: 255,
                     val: 16,
                 }))
-                    .take(25);
+                .take(25);
 
                 // ws2812.write(pixels)?;
 

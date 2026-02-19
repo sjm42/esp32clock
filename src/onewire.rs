@@ -23,7 +23,7 @@ pub async fn measure_temperature<P, E>(
     max_retry: u32,
 ) -> Result<f32, MeasurementError<E>>
 where
-    P: OutputPin<Error=E> + InputPin<Error=E>,
+    P: OutputPin<Error = E> + InputPin<Error = E>,
     E: std::fmt::Debug,
 {
     let sensor = ds18b20::Ds18b20::new::<E>(addr.to_owned())?;
@@ -64,7 +64,7 @@ where
 
 pub fn scan_1wire<P, E>(one_wire_bus: &mut OneWire<P>) -> Result<Address, MeasurementError<E>>
 where
-    P: OutputPin<Error=E> + InputPin<Error=E>,
+    P: OutputPin<Error = E> + InputPin<Error = E>,
 {
     let state = None;
     if let Some((addr, _state)) = one_wire_bus.device_search(state, false, &mut Ets)? {

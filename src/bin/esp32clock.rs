@@ -3,7 +3,6 @@
 #![warn(clippy::large_futures)]
 
 use chrono_tz::Etc::UTC;
-use esp32clock::*;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{IOPin, InputPin, OutputPin, Pull},
@@ -12,6 +11,7 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
 use esp_idf_sys::esp;
+use esp32clock::*;
 use one_wire_bus::OneWire;
 
 // DANGER! DO NOT USE THIS until esp-idf-svc supports newer versions of ESP-IDF
