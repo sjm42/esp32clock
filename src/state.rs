@@ -30,6 +30,7 @@ pub struct MyState {
     pub onewire_addr: Address,
     pub tz: Tz,
     pub ota_slot: String,
+    pub boot_instant: std::time::Instant,
 
     pub api_cnt: AtomicU32,
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
@@ -65,6 +66,7 @@ impl MyState {
             onewire_addr,
             tz,
             ota_slot,
+            boot_instant: std::time::Instant::now(),
 
             api_cnt: 0.into(),
             nvs: RwLock::new(nvs),

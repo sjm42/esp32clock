@@ -33,7 +33,9 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
         .route("/", get(get_index))
         .route("/favicon.ico", get(get_favicon))
         .route("/form.js", get(get_formjs))
+        .route("/index.css", get(get_indexcss))
         .route("/msg", post(send_msg).options(options))
+        .route("/uptime", get(get_uptime))
         .route("/tz", get(list_timezones))
         .route("/config", get(get_config).post(set_config).options(options))
         .route("/reset_config", get(reset_config))
@@ -104,6 +106,19 @@ pub async fn get_formjs(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response
         .into_response()
 }
 
+pub async fn get_indexcss(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
+    info!("#{cnt} get_indexcss()");
+
+    let indexcss = include_bytes!("index.css");
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+        indexcss.to_vec(),
+    )
+        .into_response()
+}
+
 pub async fn send_msg(State(state): State<Arc<Pin<Box<MyState>>>>, Json(message): Json<MyMessage>) -> Response<Body> {
     let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} send_msg()");
@@ -112,6 +127,14 @@ pub async fn send_msg(State(state): State<Arc<Pin<Box<MyState>>>>, Json(message)
     info!("Got msg: {msg}");
     *state.msg.write().await = Some(msg);
     json_ok("message accepted")
+}
+
+pub async fn get_uptime(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
+    let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
+    info!("#{cnt} get_uptime()");
+
+    let uptime = state.boot_instant.elapsed().as_secs();
+    (StatusCode::OK, Json(json!({ "uptime": uptime }))).into_response()
 }
 
 pub async fn list_timezones(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<Body> {
