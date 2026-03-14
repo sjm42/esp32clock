@@ -1,8 +1,9 @@
 // state.rs
 
+#[cfg(feature = "ws2812")]
+use esp_idf_hal::rmt;
 use esp_idf_hal::{
     gpio::{AnyIOPin, AnyInputPin, AnyOutputPin},
-    rmt,
     spi::SPI2,
 };
 use esp_idf_svc::nvs;
@@ -11,17 +12,18 @@ use one_wire_bus::Address;
 use crate::*;
 
 pub struct MyPins {
+    #[cfg(feature = "ws2812")]
     pub rmt: rmt::CHANNEL0,
-    pub spi: SPI2,
-    pub sclk: AnyOutputPin,
-    pub sdo: AnyOutputPin,
-    pub cs: AnyOutputPin,
-    pub button: AnyInputPin,
+    pub spi: SPI2<'static>,
+    pub sclk: AnyOutputPin<'static>,
+    pub sdo: AnyOutputPin<'static>,
+    pub cs: AnyOutputPin<'static>,
+    pub button: AnyInputPin<'static>,
 }
 unsafe impl Sync for MyPins {}
 
 pub struct MyOnewire {
-    pub onewire: AnyIOPin,
+    pub onewire: AnyIOPin<'static>,
 }
 unsafe impl Sync for MyOnewire {}
 

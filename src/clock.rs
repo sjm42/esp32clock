@@ -19,7 +19,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
     // set up SPI bus and MAX7219 driver
 
     let pins = state.pins.write().await.take().unwrap();
-    let button = gpio::PinDriver::input(pins.button)?;
+    let button = gpio::PinDriver::input(pins.button, gpio::Pull::Up)?;
 
     #[cfg(feature = "ws2812")]
     {
@@ -63,10 +63,10 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
             pins.spi,
             pins.sclk,
             pins.sdo,
-            None::<gpio::AnyInputPin>,
+            None::<gpio::AnyInputPin<'static>>,
             &spi::SpiDriverConfig::new(),
         )?;
-        let spiconfig = spi::config::Config::new().baudrate(10.MHz().into());
+        let spiconfig = spi::config::Config::new().baudrate(10_u32.MHz().into());
         let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
         MAX7219::from_spi(8, spi_dev).unwrap()
     };
@@ -169,8 +169,12 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 
     let coords = sunrise::Coordinates::new(lat as f64, lon as f64).unwrap();
     let solarday = sunrise::SolarDay::new(coords, local_t.date_naive());
-    let sunrise_t = solarday.event_time(sunrise::SolarEvent::Sunrise).with_timezone(&tz);
-    let sunset_t = solarday.event_time(sunrise::SolarEvent::Sunset).with_timezone(&tz);
+    let sunrise_t = solarday
+        .event_time(sunrise::SolarEvent::Sunrise)
+        .map(|time| time.with_timezone(&tz));
+    let sunset_t = solarday
+        .event_time(sunrise::SolarEvent::Sunset)
+        .map(|time| time.with_timezone(&tz));
 
     // finally, move to the main clock display loop
     let mut time_vscroll = Some(true);
@@ -231,7 +235,10 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
         if let Some(dir) = time_vscroll {
             // adjust display brightness for time of day
 
-            let daylight = local > sunrise_t && local < sunset_t;
+            let daylight = match (&sunrise_t, &sunset_t) {
+                (Some(sunrise_t), Some(sunset_t)) => local > *sunrise_t && local < *sunset_t,
+                _ => true,
+            };
             info!("Daylight: {daylight}");
 
             for i in 0..8 {
@@ -319,7 +326,7 @@ pub async fn run_clock(mut state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::R
 #[cfg(feature = "max7219")]
 async fn reset_button<'a, 'b>(
     state: &mut Arc<std::pin::Pin<Box<MyState>>>,
-    button: &gpio::PinDriver<'a, gpio::AnyInputPin, gpio::Input>,
+    button: &gpio::PinDriver<'a, gpio::Input>,
     led_mat: &mut MAX7219<SpiConnector<SpiDeviceDriver<'b, spi::SpiDriver<'b>>>>,
 ) -> anyhow::Result<()> {
     let mut reset_cnt = CONFIG_RESET_COUNT;

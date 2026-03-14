@@ -23,7 +23,7 @@ pub use chrono_tz::{TZ_VARIANTS, Tz};
 pub use clock::*;
 pub use config::*;
 pub use display::*;
-pub use esp_idf_hal::{gpio, prelude::*, spi};
+pub use esp_idf_hal::{gpio, peripherals::Peripherals, spi, units::FromValueType};
 pub use esp_idf_svc::hal::spi::SpiDeviceDriver;
 pub use font::*;
 #[cfg(feature = "max7219")]

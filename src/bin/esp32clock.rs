@@ -3,21 +3,13 @@
 #![warn(clippy::large_futures)]
 
 use chrono_tz::Etc::UTC;
-use esp_idf_hal::{
-    delay::FreeRtos,
-    gpio::{IOPin, InputPin, OutputPin, Pull},
-};
+use esp_idf_hal::{delay::FreeRtos, gpio::Pull};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
 use esp_idf_sys::esp;
 use esp32clock::*;
 use one_wire_bus::OneWire;
-
-// DANGER! DO NOT USE THIS until esp-idf-svc supports newer versions of ESP-IDF
-// - until then, only up to esp-idf 5.3.2 is supported with esp_app_desc!()
-// Without the macro usage up to esp-idf v5.4.2 is supported.
-// ESP-IDF version 5.5 requires updated esp-idf-svc crate to be released.
 
 // use esp_idf_sys::esp_app_desc;
 // esp_app_desc!();
@@ -96,14 +88,16 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take()?;
     let pins = peripherals.pins;
+    #[cfg(feature = "ws2812")]
     let rmt = peripherals.rmt.channel0;
 
     let spi = peripherals.spi2;
-    let sclk = pins.gpio0.downgrade_output();
-    let cs = pins.gpio1.downgrade_output();
-    let sdo = pins.gpio2.downgrade_output();
-    let button = pins.gpio9.downgrade_input();
+    let sclk = pins.gpio0.degrade_output();
+    let cs = pins.gpio1.degrade_output();
+    let sdo = pins.gpio2.degrade_output();
+    let button = pins.gpio9.degrade_input();
     let mypins = MyPins {
+        #[cfg(feature = "ws2812")]
         rmt,
         spi,
         sclk,
@@ -112,12 +106,11 @@ fn main() -> anyhow::Result<()> {
         button,
     };
 
-    let mut onewire = pins.gpio8.downgrade();
+    let mut onewire = pins.gpio8.degrade_input_output();
     let onewire_addr = if config.sensor_enable {
         info!("Sensor: scanning 1-wire devices...");
 
-        let mut pin_drv = gpio::PinDriver::input_output_od(&mut onewire)?;
-        pin_drv.set_pull(Pull::Up)?;
+        let pin_drv = gpio::PinDriver::input_output_od(unsafe { onewire.reborrow() }, Pull::Up)?;
         let mut w = OneWire::new(pin_drv).unwrap();
 
         if let Ok(a) = scan_1wire(&mut w) {

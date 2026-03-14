@@ -33,5 +33,4 @@ build-std = ["std", "panic_abort"]
 CHRONO_TZ_TIMEZONE_FILTER = "Europe/.*"
 CRATE_CC_NO_DEFAULTS = "1"
 MCU = "esp32c3"
-# DANGER! DO NOT UPDATE major version to e.g. 5.5 until esp-idf-svc supports it
-ESP_IDF_VERSION = "v5.4.3"
+ESP_IDF_VERSION = "v5.5.3"
