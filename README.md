@@ -7,11 +7,13 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - runtime configuration is stored on flash, serialized with CRC32 checksum
 - default build-time WiFi credentials can be overridden with env variables (`WIFI_SSID`, `WIFI_PASS`)
 - WPA2-Personal and WPA2-Enterprise WiFi authentication are supported
+- WiFi modem power saving is disabled after association to improve connection stability
 - DHCP or static IPv4 configuration with custom DNS servers
 - language can be set to Eng/Fin and it affects weekday and month abbreviations on screen
 - IANA timezone support (filtered to Europe at build time, configurable via `CHRONO_TZ_TIMEZONE_FILTER`)
-- templated web UI for configuration, messaging, and firmware OTA updates
-- HTTP JSON API for reading/saving config, sending instant messages, and OTA firmware updates
+- templated web UI for configuration, messaging, firmware OTA updates, and uptime display
+- static web assets live under `static/` and are gzip-compressed at build time before being embedded into the firmware
+- HTTP JSON API for reading/saving config, sending instant messages, reading uptime, and OTA firmware updates
 - MQTT support for receiving outdoor temperature, instant messages, and display on/off control
 - DS18B20 1-wire temperature sensor support with MQTT publishing
 - sunrise/sunset-based automatic day/night LED brightness adjustment
@@ -20,11 +22,23 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - gateway health check with automatic reboot on connectivity loss
 - hardware button for factory reset
 
+## Project layout
+
+- `src/bin/esp32clock.rs` - firmware entrypoint and task orchestration
+- `src/*.rs` - runtime modules for clock, display, WiFi, MQTT, config, API server, and sensor handling
+- `templates/index.html.ask` - Askama template for the web UI
+- `static/` - frontend assets served by the API server (`form.js`, `index.css`, `favicon.ico`)
+- `pics/` - hardware/demo images
+- `build.rs`, `.cargo/config.toml`, `partitions.csv`, `sdkconfig.defaults` - build and platform configuration
+
 ## Build and flash
 
 Toolchain and target are configured in `rust-toolchain.toml` and `.cargo/config.toml`.
 Default target is ESP32-C3 (`riscv32imc-esp-espidf`). For ESP32, switch to the
 commented `xtensa-esp32-espidf` target in `.cargo/config.toml`.
+
+During the build, `build.rs` compresses the files in `static/` and embeds the
+gzipped assets into the firmware image.
 
 ```bash
 # build release firmware
@@ -90,6 +104,12 @@ cargo build -r --no-default-features --features esp32c3,ws2812
 
 A configuration web UI is served at the root URL (`/`). It provides a form for editing
 all settings, sending instant messages, and triggering OTA firmware updates.
+
+Recent UI changes:
+
+- the landing page now shows the firmware version, active OTA slot, and live uptime
+- forms are submitted asynchronously from `static/form.js` and show inline status messages
+- `static/index.css` provides the current responsive layout used by the built-in UI
 
 ## Testing and validation
 
@@ -185,32 +205,41 @@ curl -so- -H 'Content-Type: application/json' \
 http://10.6.66.183/msg -d '{"msg": "Hello world!"}'
 ```
 
+Read device uptime:
+
+```text
+curl -so- http://10.6.66.183/uptime | jq
+{
+  "uptime": 12345
+}
+```
+
 Reset config to factory defaults:
 
 ```text
 curl -so- http://10.6.66.183/reset_config
 ```
 
-Trigger OTA firmware update from a URL:
+Trigger OTA firmware update from a URL. The OTA endpoint accepts form data and
+currently requires a plain `http://` URL:
 
 ```text
-curl -so- -X POST http://10.6.66.183/fw -d 'url=http://myserver/firmware.bin'
+curl -so- -X POST http://10.6.66.183/fw \
+  -d 'url=http://myserver/firmware.bin'
 ```
 
-List supported timezones (filtered to Europe at build time):
+List supported timezones (filtered to Europe at build time). The endpoint now
+returns JSON:
 
 ```text
-curl -so- http://10.6.66.183/tz | grep Europe
-Europe/Amsterdam
-Europe/Andorra
-Europe/Astrakhan
-Europe/Athens
-Europe/Belfast
-Europe/Belgrade
-Europe/Berlin
-Europe/Bratislava
-Europe/Brussels
-... etc.
+curl -so- http://10.6.66.183/tz | jq '.timezones[:5]'
+[
+  "Europe/Amsterdam",
+  "Europe/Andorra",
+  "Europe/Astrakhan",
+  "Europe/Athens",
+  "Europe/Belfast"
+]
 ```
 
 ## MQTT
