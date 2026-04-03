@@ -3,7 +3,7 @@
 use embedded_hal::digital::{InputPin, OutputPin};
 use esp_idf_hal::{
     delay::{Ets, FreeRtos},
-    gpio::{self, Pull},
+    gpio,
 };
 use one_wire_bus::{Address, OneWire, OneWireError};
 
@@ -80,8 +80,11 @@ impl<E> From<OneWireError<E>> for MeasurementError<E> {
     }
 }
 
-pub async fn poll_sensor(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
-    if !state.config.sensor_enable {
+pub async fn poll_sensor(
+    state: Arc<Pin<Box<MyState>>>,
+    mut one_wire_bus: OneWire<gpio::PinDriver<'static, gpio::InputOutput>>,
+) -> anyhow::Result<()> {
+    if state.ap_mode || !state.config.sensor_enable {
         info!("Sensor is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
         loop {
@@ -90,26 +93,23 @@ pub async fn poll_sensor(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
     }
 
     sleep(Duration::from_secs(60)).await;
-    let mut onewire_pin = state.onewire_pin.write().await.take().unwrap().onewire;
     let onewire_addr = &state.onewire_addr;
 
     loop {
         sleep(Duration::from_secs(60)).await;
         info!("Polling 1-wire sensors");
 
-        {
-            let pin_drv = gpio::PinDriver::input_output_od(unsafe { onewire_pin.reborrow() }, Pull::Up).unwrap();
-            let mut w = OneWire::new(pin_drv).unwrap();
+        let read_result = Box::pin(measure_temperature(&mut one_wire_bus, onewire_addr, 5)).await;
 
-            match Box::pin(measure_temperature(&mut w, onewire_addr, 5)).await {
-                Ok(meas) => {
-                    info!("Onewire response {onewire_addr:?}:\n{meas:#?}");
-                    *state.meas.write().await = meas;
-                    *state.meas_updated.write().await = true;
-                }
-                Err(e) => {
-                    error!("Temp read error: {e:#?}");
-                }
+        match read_result {
+            Ok(meas) => {
+                info!("Onewire response {onewire_addr:?}:\n{meas:#?}");
+                *state.meas.write().await = meas;
+                *state.meas_updated.write().await = true;
+                Box::pin(state.pulse_led(Duration::from_millis(150))).await.ok();
+            }
+            Err(e) => {
+                error!("Temp read error: {e:#?}");
             }
         }
     }

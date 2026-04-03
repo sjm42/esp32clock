@@ -33,7 +33,7 @@ pub use onewire::*;
 pub use serde::Deserialize;
 pub use state::*;
 pub use tokio::{
-    sync::RwLock,
+    sync::{Mutex, RwLock},
     task,
     time::{Duration, sleep},
 };
@@ -64,6 +64,10 @@ pub struct UpdateFirmware {
 }
 
 pub const FW_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const AP_MODE_NVS_KEY: &str = "boot_ap";
+pub const AP_MODE_SSID: &str = "esp32clock";
+pub const AP_MODE_IP_ADDR: net::Ipv4Addr = net::Ipv4Addr::new(10, 42, 42, 1);
+pub const AP_MODE_IP_MASK: u8 = 24;
 
 pub const SPIN: [char; 4] = ['|', '/', '-', '\\'];
 

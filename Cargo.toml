@@ -2,7 +2,7 @@
 
 [package]
 name = "esp32clock"
-version = "2.1.5"
+version = "2.2.0"
 authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2024"
 resolver = "2"
@@ -10,14 +10,13 @@ resolver = "2"
 
 [[bin]]
 name = "esp32clock"
-harness = false     # do not use the built in cargo test harness -> resolve rust-analyzer errors
+harness = false
 # test = false
 
 
 [features]
 default = ["esp32c3", "max7219"]
 reset_settings = []
-esp32s = []
 esp32c3 = []
 max7219 = ["dep:max7219"]
 ws2812 = ["dep:smart-leds", "dep:smart-leds-trait"]

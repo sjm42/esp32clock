@@ -12,8 +12,8 @@ const TOPIC_ALL_DISPLAYS: &str = "esp32clock-all-displays";
 const TOPIC_ALL_MSG: &str = "esp32clock-all-msg";
 
 pub async fn run_mqtt(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()> {
-    if !state.config.mqtt_enable {
-        info!("Temp is disabled.");
+    if state.ap_mode || !state.config.mqtt_enable {
+        info!("MQTT is disabled.");
         // we cannot return, otherwise tokio::select in main() will exit
         loop {
             sleep(Duration::from_secs(3600)).await;
@@ -138,6 +138,7 @@ async fn event_loop(
         } = notification.payload()
         {
             info!("Rcvd topic: {topic}");
+            Box::pin(state.pulse_led(Duration::from_millis(300))).await.ok();
 
             if topic == temp_topic {
                 match serde_json::from_slice::<Temperature>(data) {

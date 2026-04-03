@@ -20,7 +20,10 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - animated date and temperature displays :grin:
 - OTA firmware updates with dual partition slots
 - gateway health check with automatic reboot on connectivity loss
-- hardware button for factory reset
+- short-press button entry to WiFi AP configuration mode
+- long-press button factory reset with LED feedback
+- activity LED indication for ping, sensor reads, MQTT receives, and AP mode
+- AP mode uses daytime display brightness and a slower marquee for readability
 
 ## Project layout
 
@@ -34,8 +37,7 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 ## Build and flash
 
 Toolchain and target are configured in `rust-toolchain.toml` and `.cargo/config.toml`.
-Default target is ESP32-C3 (`riscv32imc-esp-espidf`). For ESP32, switch to the
-commented `xtensa-esp32-espidf` target in `.cargo/config.toml`.
+The supported target is ESP32-C3 (`riscv32imc-esp-espidf`).
 
 During the build, `build.rs` compresses the files in `static/` and embeds the
 gzipped assets into the firmware image.
@@ -59,8 +61,7 @@ cargo fmt --check
 
 Default build enables `esp32c3` and `max7219`.
 
-- `esp32s` - ESP32-S variant support
-- `ws2812` - WS2812 LED support (alternative display backend) (NOT WORKING YET)
+- `ws2812` - placeholder feature for an alternate display backend; currently not implemented
 - `reset_settings` - reset config at boot
 
 Examples:
@@ -75,20 +76,28 @@ cargo build -r --no-default-features --features esp32c3,ws2812
 
 ## Hardware
 
-- ESP32-C3 module by WeAct studio with RISC-V cpu is the default target; ESP32
-  (Xtensa) is also supported by switching target/build settings
+- ESP32-C3 module by WeAct studio with RISC-V cpu
 - the partition table uses two OTA slots of ~2 MB each, so 4 MB flash is the minimum
-- if using a different module with different pinout and/or cpu type, the pin config and build parameters must be
-  adjusted
+- if using a different C3 module with different pinout, the pin config must be adjusted
 - purchase link: <https://www.aliexpress.com/item/1005004960064227.html>
 - in the "reference" design, ESP32-C3 is soldered on the CLK/CS/DIN pins of display module, corresponding to GPIO 0/1/2
   pins
-- GPIO 8 is used for the optional DS18B20 1-wire temperature sensor
-- GPIO 9 is used for the factory reset button
+- GPIO 8 is used for the ESP32-C3 status LED
+- GPIO 10 is used for the optional DS18B20 1-wire temperature sensor
+- GPIO 9 is used for the setup/reset button
 - 8 pieces of 8x8 LED matrix displays driven by MAX7219 is used:
     - they can be made by soldering two 4-unit modules in chain, or just use one 1x8 readymade module.
     - search for "MAX7219 8x8 dot matrix module" and use either two 4-unit modules or one 8-unit module.
     - Examples: <https://www.aliexpress.com/item/1005006222492232.html>
+
+## Button and AP mode
+
+- short press stores a one-shot AP-mode boot flag in NVS and reboots into setup mode
+- long press counts down to a factory reset, restores default config, and reboots
+- while the button is held, the status LED blinks; in AP mode it stays on continuously
+- AP mode starts an open WiFi network named `esp32clock` at `10.42.42.1`
+- AP mode keeps only the setup UI and display active; MQTT, sensor polling, sensor scanning, and ping watchdog logic are disabled
+- AP mode forces `led_intensity_day` and scrolls the IP marquee more slowly for readability
 
 ## Sample pictures
 
@@ -121,6 +130,8 @@ Recommended validation:
 - static checks: `cargo clippy --all-targets --all-features` and `cargo fmt --check`
 - on-device smoke test via `./flash`:
   - device boots and syncs time
+  - short button press reboots into AP mode and serves config UI at `http://10.42.42.1/`
+  - long button hold factory-resets config and reboots
   - `/config` GET/POST works
   - MQTT message/display controls work (if enabled)
   - optional DS18B20 reading/publishing works (if enabled)

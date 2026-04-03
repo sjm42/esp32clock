@@ -4,7 +4,7 @@
 - `src/bin/esp32clock.rs`: firmware entrypoint and task orchestration.
 - `src/*.rs`: core modules (`clock`, `display`, `wifi`, `mqtt`, `apiserver`, `config`, `state`, `onewire`).
 - `templates/`: Askama HTML templates for the web UI.
-- `src/form.js` and `src/favicon.ico`: static assets served by the API server.
+- `static/`: static assets served by the API server (`form.js`, `index.css`, `favicon.ico`).
 - `pics/`: hardware/demo images for docs.
 - Build and platform config: `Cargo.toml`, `.cargo/config.toml`, `build.rs`, `partitions.csv`, `sdkconfig.defaults`.
 
@@ -18,14 +18,14 @@
 ## Coding Style & Naming Conventions
 - Rust 2024 edition; use idiomatic Rust (`snake_case` for functions/variables, `CamelCase` for types, `SCREAMING_SNAKE_CASE` for constants).
 - Keep lines readable under the configured `max_width = 120`.
-- Prefer small modules with clear responsibility; add features behind Cargo feature flags (`esp32c3`, `esp32s`, `max7219`, `ws2812`).
+- Prefer small modules with clear responsibility; current hardware target is ESP32-C3 with MAX7219 by default. The `ws2812` feature exists as a placeholder and is not implemented.
 - Run `cargo fmt` and `cargo clippy` before committing.
 
 ## Testing Guidelines
 - This repository currently has no unit-test harness (`harness = false` for the binary).
 - Treat validation as:
   - static checks: `cargo clippy` + `cargo fmt --check`
-  - device smoke tests: `./flash`, WiFi bring-up, `/config` read/write, MQTT message handling, and display behavior.
+  - device smoke tests: `./flash`, normal WiFi bring-up, short-press AP-mode entry, long-press factory reset, `/config` read/write, MQTT message handling, and display behavior.
 - If adding tests later, place module tests near implementation (`mod tests`) and keep test names behavior-focused (for example, `loads_default_config_when_nvs_empty`).
 
 ## Commit & Pull Request Guidelines
@@ -41,3 +41,5 @@
 - Do not commit real WiFi/MQTT credentials.
 - Use environment variables (`WIFI_SSID`, `WIFI_PASS`, `API_PORT`, `MCU`) for local overrides.
 - Keep ESP-IDF version changes deliberate; verify compatibility before upgrading pinned versions.
+- Current ESP32-C3 pin mapping: GPIO0/1/2 = MAX7219 SPI, GPIO8 = status LED, GPIO9 = setup/reset button, GPIO10 = DS18B20.
+- In AP mode the firmware should keep only setup-relevant behavior active: web UI, AP networking, display status, and explicit reset flows. MQTT, sensor polling, sensor scanning, and ping watchdog logic should remain disabled there.
