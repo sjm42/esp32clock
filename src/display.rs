@@ -63,7 +63,6 @@ impl MyDisplay {
         }
     }
 
-    #[cfg(feature = "max7219")]
     pub fn show_buf(&self, buf: &[[u8; 8]], led_mat: &mut LedMatrix) {
         if buf.len() != ELEMS {
             // our slice size does not match!
@@ -88,18 +87,19 @@ impl MyDisplay {
                 led_mat.write_raw(d, &buf[d]).ok();
             });
         }
+
+        #[cfg(feature = "ws2812")]
+        led_mat.flush().ok();
     }
 
     pub fn clear(&mut self) {
         (0..ELEMS).for_each(|d| (0..8).for_each(|r| self.fbuf[d][r] = 0));
     }
 
-    #[cfg(feature = "max7219")]
     pub fn show(&self, led_mat: &mut LedMatrix) {
         self.show_buf(&self.fbuf, led_mat);
     }
 
-    #[cfg(feature = "max7219")]
     pub async fn marquee<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
@@ -158,7 +158,6 @@ impl MyDisplay {
         self.show(led_mat);
     }
 
-    #[cfg(feature = "max7219")]
     pub async fn vscroll<S>(&mut self, delay_ms: u16, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
     where
         S: AsRef<str>,
@@ -224,7 +223,6 @@ impl MyDisplay {
         }
     }
 
-    #[cfg(feature = "max7219")]
     pub async fn turn_off(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>) {
         let delay = std::cmp::max(1, delay_ms as u64);
 
@@ -286,7 +284,6 @@ impl MyDisplay {
         }
     }
 
-    #[cfg(feature = "max7219")]
     pub async fn message<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, msg: S, lang: &MyLang)
     where
         S: AsRef<str>,

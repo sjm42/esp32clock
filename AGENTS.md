@@ -18,7 +18,8 @@
 ## Coding Style & Naming Conventions
 - Rust 2024 edition; use idiomatic Rust (`snake_case` for functions/variables, `CamelCase` for types, `SCREAMING_SNAKE_CASE` for constants).
 - Keep lines readable under the configured `max_width = 120`.
-- Prefer small modules with clear responsibility; current hardware target is ESP32-C3 with MAX7219 by default. The `ws2812` feature exists as a placeholder and is not implemented.
+- Prefer small modules with clear responsibility; current hardware target is ESP32-C3 with MAX7219 by default, but the firmware can also target a WS2812 matrix backend.
+- Exactly one display backend feature must be enabled: `max7219` or `ws2812`.
 - Run `cargo fmt` and `cargo clippy` before committing.
 
 ## Testing Guidelines
@@ -41,5 +42,10 @@
 - Do not commit real WiFi/MQTT credentials.
 - Use environment variables (`WIFI_SSID`, `WIFI_PASS`, `API_PORT`, `MCU`) for local overrides.
 - Keep ESP-IDF version changes deliberate; verify compatibility before upgrading pinned versions.
-- Current ESP32-C3 pin mapping: GPIO0/1/2 = MAX7219 SPI, GPIO8 = status LED, GPIO9 = setup/reset button, GPIO10 = DS18B20.
+- Current ESP32-C3 pin mapping:
+  - MAX7219 build: GPIO0/1/2 = SPI CLK/CS/DIN
+  - WS2812 build: GPIO7 = data output
+  - GPIO8 = status LED
+  - GPIO9 = setup/reset button
+  - GPIO10 = DS18B20
 - In AP mode the firmware should keep only setup-relevant behavior active: web UI, AP networking, display status, and explicit reset flows. MQTT, sensor polling, sensor scanning, and ping watchdog logic should remain disabled there.

@@ -24,15 +24,6 @@ enum ClockMode {
 
 // #[allow(unused_variables)]
 pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) -> anyhow::Result<()> {
-    #[cfg(all(feature = "ws2812", not(feature = "max7219")))]
-    {
-        let _ = pins;
-        warn!("ws2812 display backend is not implemented in this firmware.");
-        loop {
-            sleep(Duration::from_secs(3600)).await;
-        }
-    }
-
     #[cfg(feature = "max7219")]
     let mut led_mat = {
         let spi_driver = spi::SpiDriver::new::<spi::SPI2>(
@@ -46,23 +37,21 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
         let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
         MAX7219::from_spi(8, spi_dev).unwrap()
     };
+    #[cfg(feature = "ws2812")]
+    let mut led_mat = LedMatrix::new(pins.sdo)?;
 
     // set up led matrix display
-    #[cfg(feature = "max7219")]
-    {
-        led_mat.power_on().ok();
-        for i in 0..8 {
-            let intensity = state.config.led_intensity_night;
-            led_mat.clear_display(i).ok();
-            led_mat.set_intensity(i, intensity).ok();
-        }
+    led_mat.power_on().ok();
+    for i in 0..8 {
+        let intensity = state.config.led_intensity_night;
+        led_mat.clear_display(i).ok();
+        led_mat.set_intensity(i, intensity).ok();
     }
     let mut disp = MyDisplay::new_upside_down();
     let mut mode = ClockMode::WaitWifi { cnt: 0 };
     let mut ntp: Option<sntp::EspSntp<'static>> = None;
 
     loop {
-        #[cfg(feature = "max7219")]
         if Box::pin(show_reset_status(&state, &mut disp, &mut led_mat)).await {
             sleep(Duration::from_millis(100)).await;
             continue;
@@ -79,23 +68,17 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
         match &mut mode {
             ClockMode::WaitWifi { cnt } => {
                 if *state.wifi_up.read().await {
-                    #[cfg(feature = "max7219")]
-                    {
-                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "Connect!")).await;
-                        sleep(Duration::from_millis(1000)).await;
-                    }
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, "Connect!")).await;
+                    sleep(Duration::from_millis(1000)).await;
 
                     if state.ap_mode {
                         let ip_info = format!("    Go to url: http://{}/", state.ip_addr.read().await);
                         mode = ClockMode::ApMode { ip_info };
                     } else {
-                        #[cfg(feature = "max7219")]
-                        {
-                            let ip_info = format!("My ip: {}", state.ip_addr.read().await);
-                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &ip_info)).await;
-                            sleep(Duration::from_millis(500)).await;
-                            Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
-                        }
+                        let ip_info = format!("My ip: {}", state.ip_addr.read().await);
+                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &ip_info)).await;
+                        sleep(Duration::from_millis(500)).await;
+                        Box::pin(disp.marquee(15, &mut led_mat, &ip_info)).await;
 
                         ntp = Some(sntp::EspSntp::new_default()?);
                         mode = ClockMode::WaitNtp { cnt: 0 };
@@ -109,7 +92,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                 }
 
                 disp.print(format!("WiFi ({})", SPIN[*cnt % 4]), false);
-                #[cfg(feature = "max7219")]
                 disp.show(&mut led_mat);
 
                 *cnt += 1;
@@ -117,28 +99,22 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
             }
 
             ClockMode::ApMode { ip_info } => {
-                #[cfg(feature = "max7219")]
-                {
-                    for i in 0..8 {
-                        led_mat.power_on().ok();
-                        led_mat.set_intensity(i, state.config.led_intensity_day).ok();
-                    }
-                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "AP mode!")).await;
-                    sleep(Duration::from_millis(1000)).await;
-                    Box::pin(disp.marquee(25, &mut led_mat, "    Waiting for configuration...")).await;
-                    sleep(Duration::from_millis(1000)).await;
-                    Box::pin(disp.marquee(25, &mut led_mat, ip_info)).await;
-                    sleep(Duration::from_millis(1000)).await;
+                for i in 0..8 {
+                    led_mat.power_on().ok();
+                    led_mat.set_intensity(i, state.config.led_intensity_day).ok();
                 }
+                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "AP mode!")).await;
+                sleep(Duration::from_millis(1000)).await;
+                Box::pin(disp.marquee(25, &mut led_mat, "    Waiting for configuration...")).await;
+                sleep(Duration::from_millis(1000)).await;
+                Box::pin(disp.marquee(25, &mut led_mat, ip_info)).await;
+                sleep(Duration::from_millis(1000)).await;
             }
 
             ClockMode::WaitNtp { cnt } => {
                 if Utc::now().year() > 2020 && ntp.as_ref().unwrap().get_sync_status() == sntp::SyncStatus::Completed {
-                    #[cfg(feature = "max7219")]
-                    {
-                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
-                        sleep(Duration::from_millis(500)).await;
-                    }
+                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
+                    sleep(Duration::from_millis(500)).await;
 
                     mode = ClockMode::Running(build_running_state(&state));
                     continue;
@@ -149,11 +125,8 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     esp_idf_hal::reset::restart();
                 }
 
-                #[cfg(feature = "max7219")]
-                {
-                    disp.print(format!("NTP..({})", SPIN[*cnt % 4]), false);
-                    disp.show(&mut led_mat);
-                }
+                disp.print(format!("NTP..({})", SPIN[*cnt % 4]), false);
+                disp.show(&mut led_mat);
 
                 *cnt += 1;
                 sleep(Duration::from_millis(200)).await;
@@ -164,7 +137,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     sleep(Duration::from_millis(500)).await;
                 }
 
-                #[cfg(feature = "max7219")]
                 if !*state.display_enabled.read().await {
                     running.time_vscroll = None;
                     if !running.display_is_turned_off {
@@ -191,7 +163,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
 
                 let ts = format!(" {hour:02}{min:02}:{sec:02}");
 
-                #[cfg(feature = "max7219")]
                 if let Some(dir) = running.time_vscroll {
                     let daylight = match (&running.sunrise_t, &running.sunset_t) {
                         (Some(sunrise_t), Some(sunset_t)) => local > *sunrise_t && local < *sunset_t,
@@ -227,16 +198,13 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
 
                         let date_s1 = format!("{wday_s} {day}. ");
                         let date_s2 = format!("{mon_s} {year}  ");
-                        #[cfg(feature = "max7219")]
-                        {
-                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
-                            sleep(Duration::from_millis(1500)).await;
+                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s1)).await;
+                        sleep(Duration::from_millis(1500)).await;
 
-                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
-                            sleep(Duration::from_millis(1500)).await;
+                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, &date_s2)).await;
+                        sleep(Duration::from_millis(1500)).await;
 
-                            Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
-                        }
+                        Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &date_s1)).await;
                         Some(false)
                     }
 
@@ -247,12 +215,9 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                                 *state.reset.write().await = true;
                                 None
                             } else {
-                                #[cfg(feature = "max7219")]
-                                {
-                                    let temp_s = format!("{t:+.1}°C");
-                                    Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
-                                    sleep(Duration::from_millis(1500)).await;
-                                }
+                                let temp_s = format!("{t:+.1}°C");
+                                Box::pin(disp.vscroll(DEFAULT_VSCROLLD, false, &mut led_mat, &temp_s)).await;
+                                sleep(Duration::from_millis(1500)).await;
 
                                 Some(true)
                             }
@@ -263,7 +228,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     _ => None,
                 };
 
-                #[cfg(feature = "max7219")]
                 if let Some(msg) = state.msg.write().await.take() {
                     Box::pin(disp.message(DEFAULT_VSCROLLD, &mut led_mat, &msg, &running.lang)).await;
                     running.time_vscroll = Some(true);
@@ -273,7 +237,6 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
     }
 }
 
-#[cfg(feature = "max7219")]
 async fn show_reset_status(
     state: &Arc<std::pin::Pin<Box<MyState>>>,
     disp: &mut MyDisplay,

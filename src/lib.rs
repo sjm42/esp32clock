@@ -6,6 +6,11 @@
 // #![allow(unused_imports)]
 // #![allow(unused_variables)]
 
+#[cfg(all(feature = "max7219", feature = "ws2812"))]
+compile_error!("Enable exactly one display backend: 'max7219' or 'ws2812', not both.");
+#[cfg(not(any(feature = "max7219", feature = "ws2812")))]
+compile_error!("Enable exactly one display backend: 'max7219' or 'ws2812'.");
+
 pub use std::{
     fmt, net,
     net::{Ipv4Addr, SocketAddr},
@@ -42,6 +47,8 @@ pub use wifi::*;
 
 #[cfg(feature = "max7219")]
 pub type LedMatrix<'a> = MAX7219<SpiConnector<SpiDeviceDriver<'a, spi::SpiDriver<'a>>>>;
+#[cfg(feature = "ws2812")]
+pub use ws2812::LedMatrix;
 
 #[derive(Debug, Deserialize)]
 pub struct Temperature {
@@ -105,8 +112,7 @@ mod mqtt;
 mod onewire;
 mod state;
 mod wifi;
-
-// mod ws2812;
-// pub use ws2812::*;
+#[cfg(feature = "ws2812")]
+mod ws2812;
 
 // EOF

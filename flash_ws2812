@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+set -x
+FLAGS="--no-default-features --features esp32c3,ws2812"
+exec cargo run -r $FLAGS -- --baud 921600
+# EOF

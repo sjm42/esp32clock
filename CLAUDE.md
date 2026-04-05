@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ESP32-C3-based clock using MAX7219 8x8 LED matrix displays, written in embedded Rust. Features WiFi, web UI, MQTT, DS18B20 temperature sensor, AP setup mode, status LED feedback, and OTA firmware updates.
+ESP32-C3-based clock firmware written in embedded Rust. The firmware can drive either a MAX7219 8x8 matrix chain or a WS2812 64x8 RGB matrix, and includes WiFi, web UI, MQTT, DS18B20 temperature sensor, AP setup mode, status LED feedback, and OTA firmware updates.
 
 ## Build Commands
 
@@ -64,13 +64,14 @@ The firmware runs on Tokio async runtime. The main binary (`src/bin/esp32clock.r
 | Module | Purpose |
 |---|---|
 | `config.rs` | `MyConfig` struct with serde serialization; stored in NVS via postcard+CRC32 |
-| `display.rs` | `MyDisplay` — 8-module LED matrix driver, ISO-8859-15 encoding, rotation support |
+| `display.rs` | `MyDisplay` — shared logical 8-character display/framebuffer, ISO-8859-15 encoding, rotation support |
 | `clock.rs` | Main display loop: time/date/temp rendering, sunrise/sunset brightness, AP-mode status display |
 | `apiserver.rs` | Axum routes: GET/POST `/config`, POST `/msg`, POST `/fw` (OTA), GET `/tz` |
 | `mqtt.rs` | MQTT subscribe/publish: temperature JSON, display control, messages; disabled in AP mode |
 | `wifi.rs` | `WifiLoop` — async WiFi driver with DHCP/static IP, WPA2-Personal/Enterprise, or AP mode |
 | `onewire.rs` | DS18B20 1-wire sensor: 12-bit reads with CRC verification and retries; disabled in AP mode |
 | `font.rs` | Embedded 36KB font lookup table for the LED matrix |
+| `ws2812.rs` | WS2812 RMT backend and panel pixel mapper for the RGB display option |
 | `lib.rs` | Re-exports, shared types (`Temperature`, `MyMessage`, `DisplayEnabled`), constants |
 
 ### Configuration Flow
@@ -80,15 +81,25 @@ The firmware runs on Tokio async runtime. The main binary (`src/bin/esp32clock.r
 ### Cargo Features
 
 - `default = ["esp32c3", "max7219"]` — standard build
-- `ws2812` — placeholder feature for a future alternate display backend; currently stubbed
+- `max7219` — MAX7219 monochrome display backend
+- `ws2812` — WS2812 RGB display backend
 - `reset_settings` — factory reset on boot
+- exactly one display backend must be enabled; `lib.rs` enforces this with `compile_error!`
 
 ### Key Hardware Pins (ESP32-C3)
 
-- GPIO 0/1/2: SPI CLK/CS/DIN for MAX7219 display chain
+- MAX7219 build: GPIO 0/1/2 = SPI CLK/CS/DIN for the display chain
+- WS2812 build: GPIO 7 = data output for the RGB panel chain
 - GPIO 8: status LED (active low)
 - GPIO 9: setup/factory-reset button
 - GPIO 10: DS18B20 1-wire temperature sensor
+
+### Display Backends
+
+- `max7219` is the default backend and targets the classic 8-module 8x8 monochrome chain.
+- `ws2812` targets two chained 8x32 WS2812 panels presented as one 64x8 display.
+- The current WS2812 panel mapper assumes the common 8-pixel vertical snake layout.
+- The WS2812 backend currently renders the clock text in dim red by default.
 
 ### AP Mode
 

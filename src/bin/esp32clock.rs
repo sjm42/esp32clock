@@ -3,7 +3,6 @@
 #![warn(clippy::large_futures)]
 
 use chrono_tz::Etc::UTC;
-use esp32clock::*;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{Input, PinDriver, Pull},
@@ -12,6 +11,7 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop, nvs, ota::EspOta, ping, timer::EspTaskTimerService, wifi::WifiDriver,
 };
 use esp_idf_sys::esp;
+use esp32clock::*;
 use one_wire_bus::OneWire;
 
 // use esp_idf_sys::esp_app_desc;
@@ -106,7 +106,10 @@ fn main() -> anyhow::Result<()> {
     let spi = peripherals.spi2;
     let sclk = pins.gpio0.degrade_output();
     let cs = pins.gpio1.degrade_output();
+    #[cfg(feature = "max7219")]
     let sdo = pins.gpio2.degrade_output();
+    #[cfg(feature = "ws2812")]
+    let sdo = pins.gpio7.degrade_output();
     let button = PinDriver::input(pins.gpio9.degrade_input(), Pull::Up)?;
     let mypins = MyPins { spi, sclk, sdo, cs };
 

@@ -1,6 +1,9 @@
 # ESP32 Clock
 
-A clock with ESP32 and MAX7219 8x8 led matrix displays
+A WiFi-connected ESP32-C3 clock firmware that can drive either:
+
+- an 8x8x8-character monochrome MAX7219 LED matrix chain, or
+- a 64x8 WS2812 RGB matrix made from two chained 8x32 panels
 
 ## Features
 
@@ -24,6 +27,7 @@ A clock with ESP32 and MAX7219 8x8 led matrix displays
 - long-press button factory reset with LED feedback
 - activity LED indication for ping, sensor reads, MQTT receives, and AP mode
 - AP mode uses daytime display brightness and a slower marquee for readability
+- selectable display backend: MAX7219 or WS2812
 
 ## Project layout
 
@@ -59,18 +63,21 @@ cargo fmt --check
 
 ## Cargo features
 
+Exactly one display backend must be enabled at build time.
+
 Default build enables `esp32c3` and `max7219`.
 
-- `ws2812` - placeholder feature for an alternate display backend; currently not implemented
+- `max7219` - monochrome MAX7219 8x8 matrix backend
+- `ws2812` - RGB WS2812 matrix backend
 - `reset_settings` - reset config at boot
 
 Examples:
 
 ```bash
-# default features
+# default build: ESP32-C3 + MAX7219
 cargo build -r
 
-# ws2812 build
+# WS2812 build
 cargo build -r --no-default-features --features esp32c3,ws2812
 ```
 
@@ -80,15 +87,27 @@ cargo build -r --no-default-features --features esp32c3,ws2812
 - the partition table uses two OTA slots of ~2 MB each, so 4 MB flash is the minimum
 - if using a different C3 module with different pinout, the pin config must be adjusted
 - purchase link: <https://www.aliexpress.com/item/1005004960064227.html>
-- in the "reference" design, ESP32-C3 is soldered on the CLK/CS/DIN pins of display module, corresponding to GPIO 0/1/2
-  pins
+- display backend is selected at build time
+- MAX7219 wiring in the reference design:
+  - GPIO 0 = CLK
+  - GPIO 1 = CS
+  - GPIO 2 = DIN
+- WS2812 wiring in the current reference design:
+  - GPIO 7 = data output
+  - tested with two chained 8x32 WS2812 panels, mapped as a 64x8 display
+  - the current panel mapper assumes the common "8-pixel vertical snake" layout
 - GPIO 8 is used for the ESP32-C3 status LED
 - GPIO 10 is used for the optional DS18B20 1-wire temperature sensor
 - GPIO 9 is used for the setup/reset button
-- 8 pieces of 8x8 LED matrix displays driven by MAX7219 is used:
+- MAX7219 option:
+  - 8 pieces of 8x8 LED matrix displays driven by MAX7219
     - they can be made by soldering two 4-unit modules in chain, or just use one 1x8 readymade module.
     - search for "MAX7219 8x8 dot matrix module" and use either two 4-unit modules or one 8-unit module.
     - Examples: <https://www.aliexpress.com/item/1005006222492232.html>
+- WS2812 option:
+  - two chained 8x32 RGB WS2812B panels
+  - current firmware uses a dim red default color for the clock text
+  - one and exactly one of `max7219` or `ws2812` must be selected for any build
 
 ## Button and AP mode
 
