@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ESP32-C3-based clock firmware written in embedded Rust. The firmware can drive either a MAX7219 8x8 matrix chain or a WS2812 64x8 RGB matrix, and includes WiFi, web UI, MQTT, DS18B20 temperature sensor, AP setup mode, status LED feedback, and OTA firmware updates.
+ESP32-C3-based clock firmware written in embedded Rust. The firmware can drive either an 8-module MAX7219 8x8 matrix chain or a WS2812 64x8 RGB matrix, and includes WiFi, web UI, MQTT, DS18B20 temperature sensor, AP setup mode, status LED feedback, and OTA firmware updates.
 
 ## Build Commands
 
@@ -14,12 +14,15 @@ cargo build -r
 
 # Build and flash to device with serial monitor
 ./flash                  # equivalent to: cargo run -r -- --baud 921600
+./flash_ws2812           # WS2812 backend
 
 # Build firmware.bin for OTA deployment
-./makeimage
+./make_ota_image
+./make_ota_image_ws2812  # WS2812 backend
 
 # Check/lint
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets
+cargo clippy --all-targets --no-default-features --features esp32c3,ws2812
 
 # Format
 cargo fmt
@@ -31,9 +34,10 @@ There are no unit tests (`harness = false` in Cargo.toml) — this is an embedde
 
 - **Toolchain**: Nightly Rust with `rust-src` component (see `rust-toolchain.toml`)
 - **Target**: `riscv32imc-esp-espidf` (ESP32-C3 RISC-V)
-- **ESP-IDF version**: v5.4.2 (pinned in `.cargo/config.toml` — do not update without verifying esp-idf-svc compatibility)
-- **Environment variables**: `WIFI_SSID`, `WIFI_PASS`, `API_PORT`, `MCU` can be set (see `env.sh`)
+- **ESP-IDF version**: v5.5.4 (pinned in `.cargo/config.toml` — do not update without verifying esp-idf-svc compatibility)
+- **Environment variables**: `WIFI_SSID`, `WIFI_PASS`, `API_PORT`, `MCU`, `ESP_IDF_VERSION`, `CRATE_CC_NO_DEFAULTS`, and `CHRONO_TZ_TIMEZONE_FILTER` can be set for local overrides
 - **Timezone filter**: `CHRONO_TZ_TIMEZONE_FILTER=Europe/.*` set in `.cargo/config.toml`
+- **C/C++ build flags**: `CRATE_CC_NO_DEFAULTS=1` set in `.cargo/config.toml`
 - Uses `build-std = ["std", "panic_abort"]` — builds the standard library from source
 
 ## Code Style
@@ -66,7 +70,7 @@ The firmware runs on Tokio async runtime. The main binary (`src/bin/esp32clock.r
 | `config.rs` | `MyConfig` struct with serde serialization; stored in NVS via postcard+CRC32 |
 | `display.rs` | `MyDisplay` — shared logical 8-character display/framebuffer, ISO-8859-15 encoding, rotation support |
 | `clock.rs` | Main display loop: time/date/temp rendering, sunrise/sunset brightness, AP-mode status display |
-| `apiserver.rs` | Axum routes: GET/POST `/config`, POST `/msg`, POST `/fw` (OTA), GET `/tz` |
+| `apiserver.rs` | Axum routes: GET/POST `/config`, POST `/msg`, GET `/uptime`, GET `/reset_config`, POST `/fw` (OTA), GET `/tz`, and embedded static assets |
 | `mqtt.rs` | MQTT subscribe/publish: temperature JSON, display control, messages; disabled in AP mode |
 | `wifi.rs` | `WifiLoop` — async WiFi driver with DHCP/static IP, WPA2-Personal/Enterprise, or AP mode |
 | `onewire.rs` | DS18B20 1-wire sensor: 12-bit reads with CRC verification and retries; disabled in AP mode |
@@ -85,6 +89,7 @@ The firmware runs on Tokio async runtime. The main binary (`src/bin/esp32clock.r
 - `ws2812` — WS2812 RGB display backend
 - `reset_settings` — factory reset on boot
 - exactly one display backend must be enabled; `lib.rs` enforces this with `compile_error!`
+- do not use `--all-features`; it enables both display backends and intentionally fails
 
 ### Key Hardware Pins (ESP32-C3)
 
@@ -126,4 +131,4 @@ HTML templates use Askama (type-safe Rust templates) in `templates/`. Frontend J
 
 ### Flash Partitions
 
-Dual OTA partition scheme (`partitions.csv`): two ~2MB app slots for seamless OTA updates, plus NVS and PHY init partitions. Minimum 4MB flash required.
+Dual OTA partition scheme (`partitions.csv`): two 1984K app slots for seamless OTA updates, plus NVS, OTA metadata, and PHY init partitions. Minimum 4MB flash required.

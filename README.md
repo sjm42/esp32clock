@@ -2,7 +2,7 @@
 
 A WiFi-connected ESP32-C3 clock firmware that can drive either:
 
-- an 8x8x8-character monochrome MAX7219 LED matrix chain, or
+- an 8-module 8x8 monochrome MAX7219 LED matrix chain, or
 - a 64x8 WS2812 RGB matrix made from two chained 8x32 panels
 
 ## Features
@@ -16,7 +16,7 @@ A WiFi-connected ESP32-C3 clock firmware that can drive either:
 - IANA timezone support (filtered to Europe at build time, configurable via `CHRONO_TZ_TIMEZONE_FILTER`)
 - templated web UI for configuration, messaging, firmware OTA updates, and uptime display
 - static web assets live under `static/` and are gzip-compressed at build time before being embedded into the firmware
-- HTTP JSON API for reading/saving config, sending instant messages, reading uptime, and OTA firmware updates
+- HTTP API for reading/saving config, sending instant messages, reading uptime, resetting config, and form-based OTA firmware updates
 - MQTT support for receiving outdoor temperature, instant messages, and display on/off control
 - DS18B20 1-wire temperature sensor support with MQTT publishing
 - sunrise/sunset-based automatic day/night LED brightness adjustment
@@ -32,7 +32,7 @@ A WiFi-connected ESP32-C3 clock firmware that can drive either:
 ## Project layout
 
 - `src/bin/esp32clock.rs` - firmware entrypoint and task orchestration
-- `src/*.rs` - runtime modules for clock, display, WiFi, MQTT, config, API server, and sensor handling
+- `src/*.rs` - runtime modules for clock, display backends, WiFi, MQTT, config, API server, sensor handling, shared state, and font data
 - `templates/index.html.ask` - Askama template for the web UI
 - `static/` - frontend assets served by the API server (`form.js`, `index.css`, `favicon.ico`)
 - `pics/` - hardware/demo images
@@ -54,10 +54,17 @@ cargo build -r
 ./flash
 
 # build OTA image (firmware.bin)
-./makeimage
+./make_ota_image
+
+# build + flash + serial monitor for WS2812
+./flash_ws2812
+
+# build WS2812 OTA image (firmware.bin)
+./make_ota_image_ws2812
 
 # lint and formatting checks
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets
+cargo clippy --all-targets --no-default-features --features esp32c3,ws2812
 cargo fmt --check
 ```
 
@@ -79,12 +86,16 @@ cargo build -r
 
 # WS2812 build
 cargo build -r --no-default-features --features esp32c3,ws2812
+
+# WS2812 helper scripts
+./flash_ws2812
+./make_ota_image_ws2812
 ```
 
 ## Hardware
 
 - ESP32-C3 module by WeAct studio with RISC-V cpu
-- the partition table uses two OTA slots of ~2 MB each, so 4 MB flash is the minimum
+- the partition table uses two OTA slots of 1984K each, so 4 MB flash is the minimum
 - if using a different C3 module with different pinout, the pin config must be adjusted
 - purchase link: <https://www.aliexpress.com/item/1005004960064227.html>
 - display backend is selected at build time
@@ -144,9 +155,12 @@ Recent UI changes:
 This is an embedded firmware project and the binary uses `harness = false`, so
 there is no standard unit-test flow yet.
 
-Recommended validation:
+Recommended validation. The display backends are mutually exclusive, so do not
+use `--all-features`; check the default MAX7219 build and WS2812 separately.
 
-- static checks: `cargo clippy --all-targets --all-features` and `cargo fmt --check`
+- static checks: `cargo clippy --all-targets`,
+  `cargo clippy --all-targets --no-default-features --features esp32c3,ws2812`,
+  and `cargo fmt --check`
 - on-device smoke test via `./flash`:
   - device boots and syncs time
   - short button press reboots into AP mode and serves config UI at `http://10.42.42.1/`
@@ -159,9 +173,11 @@ Recommended validation:
 
 These can be set before build to override defaults:
 
-- `WIFI_SSID`, `WIFI_PASS` - default WiFi credentials
-- `API_PORT` - default HTTP API port
-- `MCU` - MCU selection helper used by ESP build tooling
+- `WIFI_SSID`, `WIFI_PASS` - default WiFi credentials written when default config is created
+- `API_PORT` - default HTTP API port written when default config is created
+- `MCU` - MCU selection helper used by ESP build tooling (defaults to `esp32c3`)
+- `ESP_IDF_VERSION` - ESP-IDF version used by the build (currently `v5.5.4` in `.cargo/config.toml`)
+- `CRATE_CC_NO_DEFAULTS` - set to `1` in `.cargo/config.toml` for ESP C/C++ build flags
 - `CHRONO_TZ_TIMEZONE_FILTER` - timezone list filter (default `Europe/.*`)
 
 ## API and configuration
@@ -283,7 +299,8 @@ When MQTT is enabled, the clock subscribes to:
 
 Temperature messages are expected as JSON: `{"temperature": 23.5}`
 
-Display on/off messages: `{"state": true}` or `{"state": false}`
+Display on/off messages, honored when `display_shutoff_enable` is true:
+`{"state": true}` or `{"state": false}`
 
 If a DS18B20 sensor is enabled, the clock publishes its readings to `sensor_topic` in
 the same JSON format.
