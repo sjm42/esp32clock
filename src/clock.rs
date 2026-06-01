@@ -161,7 +161,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     *state.reset.write().await = true;
                 }
 
-                let ts = format!(" {hour:02}{min:02}:{sec:02}");
+                let ts = format!("{hour:02}{min:02}:{sec:02} ");
 
                 if let Some(dir) = running.time_vscroll {
                     let daylight = match (&running.sunrise_t, &running.sunset_t) {
