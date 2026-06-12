@@ -16,13 +16,17 @@
 - `./make_ota_image_ws2812`: build and generate WS2812 OTA artifact `firmware.bin`.
 - `cargo clippy --all-targets`: lint the default MAX7219 build.
 - `cargo clippy --all-targets --no-default-features --features esp32c3,ws2812`: lint the WS2812 build.
-- `cargo fmt`: apply Rust formatting (`rustfmt.toml` enforces width/import grouping).
+- `cargo fmt --check`: verify Rust formatting (`rustfmt.toml` enforces width/import grouping).
+- `cargo fmt`: apply Rust formatting.
+- `cargo outdated --root-deps-only`: check direct dependency releases.
+- `cargo update --dry-run --verbose`: check compatible lockfile updates without changing `Cargo.lock`.
 
 ## Coding Style & Naming Conventions
 - Rust 2024 edition; use idiomatic Rust (`snake_case` for functions/variables, `CamelCase` for types, `SCREAMING_SNAKE_CASE` for constants).
 - Keep lines readable under the configured `max_width = 120`.
 - Prefer small modules with clear responsibility; current hardware target is ESP32-C3 with MAX7219 by default, but the firmware can also target a WS2812 matrix backend.
 - Exactly one display backend feature must be enabled: `max7219` or `ws2812`.
+- Do not use `--all-features`; it enables both display backends and should fail by design.
 - Run `cargo fmt` and both backend-specific `cargo clippy` commands before committing.
 
 ## Testing Guidelines
@@ -45,6 +49,7 @@
 - Do not commit real WiFi/MQTT credentials.
 - Use environment variables (`WIFI_SSID`, `WIFI_PASS`, `API_PORT`, `MCU`, `ESP_IDF_VERSION`, `CRATE_CC_NO_DEFAULTS`, `CHRONO_TZ_TIMEZONE_FILTER`) for local overrides.
 - Keep ESP-IDF version changes deliberate; verify compatibility before upgrading pinned versions.
+- Keep `esp-idf-hal`, `esp-idf-svc`, `esp-idf-sys`, `embedded-svc`, and the pinned `ESP_IDF_VERSION` aligned when making platform dependency updates.
 - Current ESP32-C3 pin mapping:
   - MAX7219 build: GPIO0/1/2 = SPI CLK/CS/DIN
   - WS2812 build: GPIO7 = data output

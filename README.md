@@ -68,11 +68,27 @@ cargo clippy --all-targets --no-default-features --features esp32c3,ws2812
 cargo fmt --check
 ```
 
+## Dependency maintenance
+
+Check direct dependency releases and compatible lockfile updates before changing
+versions:
+
+```bash
+cargo outdated --root-deps-only
+cargo update --dry-run --verbose
+cargo tree --invert <crate>@<version>
+```
+
+Keep `esp-idf-hal`, `esp-idf-svc`, `esp-idf-sys`, `embedded-svc`, and the
+pinned `ESP_IDF_VERSION` in `.cargo/config.toml` aligned. Treat ESP-IDF version
+bumps as platform upgrades and verify both display backends after changing them.
+
 ## Cargo features
 
 Exactly one display backend must be enabled at build time.
 
 Default build enables `esp32c3` and `max7219`.
+Do not use `--all-features`; it enables both display backends and intentionally fails.
 
 - `max7219` - monochrome MAX7219 8x8 matrix backend
 - `ws2812` - RGB WS2812 matrix backend
