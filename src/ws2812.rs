@@ -161,7 +161,7 @@ impl<'a> LedMatrix<'a> {
             (0, 0, 0)
         };
 
-        for (src, dst) in self.pixels.iter().zip(self.tx_buf.chunks_exact_mut(3)) {
+        for (src, dst) in self.pixels.iter().zip(self.tx_buf.as_chunks_mut::<3>().0) {
             if *src {
                 dst[0] = g;
                 dst[1] = r;
@@ -203,7 +203,7 @@ fn xy_to_index(x: usize, y: usize) -> Option<usize> {
     let panel = x / PANEL_WIDTH;
     let local_x = x % PANEL_WIDTH;
     let column_base = local_x * PANEL_HEIGHT;
-    let column_runs_top_to_bottom = if local_x % 2 == 0 {
+    let column_runs_top_to_bottom = if local_x.is_multiple_of(2) {
         EVEN_COLUMN_TOP_TO_BOTTOM
     } else {
         !EVEN_COLUMN_TOP_TO_BOTTOM
