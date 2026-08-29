@@ -43,6 +43,15 @@ A WiFi-connected ESP32-C3 clock firmware that can drive either:
 Toolchain and target are configured in `rust-toolchain.toml` and `.cargo/config.toml`.
 The supported target is ESP32-C3 (`riscv32imc-esp-espidf`).
 
+Install and export Espressif's Rust toolchain before building:
+
+```bash
+cargo install --locked espup
+espup install --targets esp32c3
+. "$HOME/export-esp.sh"       # repeat in each new shell, or add it to shell startup
+cargo install --locked espflash cargo-espflash ldproxy
+```
+
 During the build, `build.rs` compresses the files in `static/` and embeds the
 gzipped assets into the firmware image.
 
