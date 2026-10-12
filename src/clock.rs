@@ -1,5 +1,6 @@
 // clock.rs
 
+use anyhow::Context;
 use esp_idf_svc::sntp;
 
 use crate::*;
@@ -35,7 +36,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
         )?;
         let spiconfig = spi::config::Config::new().baudrate(10_u32.MHz().into());
         let spi_dev = spi::SpiDeviceDriver::new(spi_driver, Some(pins.cs), &spiconfig)?;
-        MAX7219::from_spi(8, spi_dev).unwrap()
+        MAX7219::from_spi(8, spi_dev).map_err(|error| anyhow::anyhow!("Could not initialize MAX7219: {error:?}"))?
     };
     #[cfg(feature = "ws2812")]
     let mut led_mat = LedMatrix::new(pins.sdo)?;
@@ -49,6 +50,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
     }
     let mut disp = MyDisplay::new_upside_down();
     let mut mode = ClockMode::WaitWifi { cnt: 0 };
+    // Keep the SNTP service alive in Running too, for periodic resynchronization.
     let mut ntp: Option<sntp::EspSntp<'static>> = None;
 
     loop {
@@ -91,7 +93,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     esp_idf_hal::reset::restart();
                 }
 
-                disp.print(format!("WiFi ({})", SPIN[*cnt % 4]), false);
+                disp.print(&format!("WiFi ({})", SPIN[*cnt % 4]), false);
                 disp.show(&mut led_mat);
 
                 *cnt += 1;
@@ -112,11 +114,12 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
             }
 
             ClockMode::WaitNtp { cnt } => {
-                if Utc::now().year() > 2020 && ntp.as_ref().unwrap().get_sync_status() == sntp::SyncStatus::Completed {
+                let ntp = ntp.as_ref().context("NTP wait state entered without an SNTP service")?;
+                if Utc::now().year() > 2020 && ntp.get_sync_status() == sntp::SyncStatus::Completed {
                     Box::pin(disp.vscroll(DEFAULT_VSCROLLD, true, &mut led_mat, "NTP OK! ")).await;
                     sleep(Duration::from_millis(500)).await;
 
-                    mode = ClockMode::Running(build_running_state(&state));
+                    mode = ClockMode::Running(build_running_state(&state)?);
                     continue;
                 }
 
@@ -125,7 +128,7 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     esp_idf_hal::reset::restart();
                 }
 
-                disp.print(format!("NTP..({})", SPIN[*cnt % 4]), false);
+                disp.print(&format!("NTP..({})", SPIN[*cnt % 4]), false);
                 disp.show(&mut led_mat);
 
                 *cnt += 1;
@@ -228,7 +231,9 @@ pub async fn run_clock(state: Arc<std::pin::Pin<Box<MyState>>>, pins: MyPins) ->
                     _ => None,
                 };
 
-                if let Some(msg) = state.msg.write().await.take() {
+                // Release the message lock before awaiting the display animation.
+                let msg = state.msg.write().await.take();
+                if let Some(msg) = msg {
                     Box::pin(disp.message(DEFAULT_VSCROLLD, &mut led_mat, &msg, &running.lang)).await;
                     running.time_vscroll = Some(true);
                 }
@@ -257,14 +262,15 @@ async fn show_reset_status(
     }
 }
 
-fn build_running_state(state: &Arc<std::pin::Pin<Box<MyState>>>) -> RunningState {
+fn build_running_state(state: &Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<RunningState> {
     let lang = state.config.lang.to_owned();
     let tz = state.tz.to_owned();
 
     let (lat, lon) = (state.config.lat, state.config.lon);
     let local_t = Utc::now().with_timezone(&tz);
 
-    let coords = sunrise::Coordinates::new(lat as f64, lon as f64).unwrap();
+    let coords = sunrise::Coordinates::new(lat as f64, lon as f64)
+        .context("Invalid sunrise coordinates in saved configuration")?;
     let solarday = sunrise::SolarDay::new(coords, local_t.date_naive());
     let sunrise_t = solarday
         .event_time(sunrise::SolarEvent::Sunrise)
@@ -273,13 +279,13 @@ fn build_running_state(state: &Arc<std::pin::Pin<Box<MyState>>>) -> RunningState
         .event_time(sunrise::SolarEvent::Sunset)
         .map(|time| time.with_timezone(&tz));
 
-    RunningState {
+    Ok(RunningState {
         lang,
         tz,
         sunrise_t,
         sunset_t,
         time_vscroll: Some(true),
         display_is_turned_off: false,
-    }
+    })
 }
 // EOF

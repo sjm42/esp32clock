@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::*;
 
 const CONFIG_NAME: &str = "cfg";
-pub const NVS_BUF_SIZE: usize = 256;
+// Application serialization buffer limit, including the CRC; not an NVS partition limit.
+pub const NVS_BUF_SIZE: usize = 512;
 pub const BOOT_FAIL_MAX: u8 = 4;
 
 const DEFAULT_API_PORT: u16 = 80;

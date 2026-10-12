@@ -2,6 +2,7 @@
 
 #![warn(clippy::large_futures)]
 
+use anyhow::Context;
 use chrono_tz::Etc::UTC;
 use esp_idf_hal::{
     delay::FreeRtos,
@@ -22,10 +23,19 @@ const BUTTON_POLL_MS: u64 = 500;
 const BUTTON_BLINK_MS: u64 = 500;
 const BUTTON_COUNTDOWN_STEP_MS: u64 = 500;
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
+    if let Err(error) = run() {
+        error!("Fatal application error: {error:#}");
+    }
+    info!("Application stopped, rebooting...");
+    FreeRtos::delay_ms(3000);
+    esp_idf_hal::reset::restart();
+}
+
+fn run() -> anyhow::Result<()> {
     // eventfd is needed by our mio poll implementation.  Note you should set max_fds
     // higher if you have other code that may need eventfd.
 
@@ -56,13 +66,9 @@ fn main() -> anyhow::Result<()> {
     let nvs_default_partition = nvs::EspDefaultNvsPartition::take()?;
 
     let ns = env!("CARGO_BIN_NAME");
-    let mut nvs = match nvs::EspNvs::new(nvs_default_partition.clone(), ns, true) {
-        Ok(nvs) => {
-            info!("Got namespace {ns:?} from default partition");
-            nvs
-        }
-        Err(e) => panic!("Could not get namespace {ns}: {e:?}"),
-    };
+    let mut nvs = nvs::EspNvs::new(nvs_default_partition.clone(), ns, true)
+        .with_context(|| format!("Could not get NVS namespace {ns}"))?;
+    info!("Got namespace {ns:?} from default partition");
 
     #[cfg(feature = "reset_settings")]
     let config = {
@@ -115,7 +121,8 @@ fn main() -> anyhow::Result<()> {
 
     let activity_led = gpio::PinDriver::output(pins.gpio8.degrade_output())?;
     let onewire_pin = gpio::PinDriver::input_output_od(pins.gpio10.degrade_input_output(), Pull::Up)?;
-    let mut one_wire_bus = OneWire::new(onewire_pin).unwrap();
+    let mut one_wire_bus =
+        OneWire::new(onewire_pin).map_err(|error| anyhow::anyhow!("Could not initialize OneWire: {error:?}"))?;
     let onewire_addr = if ap_mode {
         info!("Sensor is disabled in AP mode.");
         one_wire_bus::Address(0)
@@ -153,25 +160,21 @@ fn main() -> anyhow::Result<()> {
             shared_state.led_off().await.ok();
             let wifi_loop = WifiLoop {
                 state: shared_state.clone(),
-                wifi: None,
             };
 
             info!("Entering main loop...");
             tokio::select! {
-                _ = Box::pin(poll_reset(shared_state.clone(), button)) => { error!("poll_reset() ended."); }
-                _ = Box::pin(run_clock(shared_state.clone(), mypins)) => { error!("run_clock() ended."); }
-                _ = Box::pin(poll_sensor(shared_state.clone(), one_wire_bus)) => { error!("poll_sensor() ended."); }
-                _ = Box::pin(run_mqtt(shared_state.clone())) => { error!("run_mqtt() ended."); }
-                _ = Box::pin(run_api_server(shared_state.clone())) => { error!("run_api_server() ended."); }
-                _ = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => { error!("wifi_loop.run() ended."); }
-                _ = Box::pin(pinger(shared_state.clone())) => { error!("pinger() ended."); }
+                result = Box::pin(poll_reset(shared_state.clone(), button)) => { error!("poll_reset() ended: {result:?}"); }
+                result = Box::pin(run_clock(shared_state.clone(), mypins)) => { error!("run_clock() ended: {result:?}"); }
+                result = Box::pin(poll_sensor(shared_state.clone(), one_wire_bus)) => { error!("poll_sensor() ended: {result:?}"); }
+                result = Box::pin(run_mqtt(shared_state.clone())) => { error!("run_mqtt() ended: {result:?}"); }
+                result = Box::pin(run_api_server(shared_state.clone())) => { error!("run_api_server() ended: {result:?}"); }
+                result = Box::pin(wifi_loop.run(wifidriver, sysloop, timer)) => { error!("wifi_loop.run() ended: {result:?}"); }
+                result = Box::pin(pinger(shared_state.clone())) => { error!("pinger() ended: {result:?}"); }
             };
         }));
 
-    // not actually returing from main() but we reboot instead
-    info!("main() finished, reboot.");
-    FreeRtos::delay_ms(3000);
-    esp_idf_hal::reset::restart();
+    Ok(())
 }
 
 async fn pinger(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
@@ -185,7 +188,13 @@ async fn pinger(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
     loop {
         sleep(Duration::from_secs(300)).await;
 
-        if let Some(ping_ip) = *state.ping_ip.read().await {
+        if !*state.wifi_up.read().await {
+            continue;
+        }
+        let generation = state.wifi_generation.load(Ordering::Relaxed);
+        // Copy out the target so no network-state lock is held during ping or sleep.
+        let ping_ip = *state.ping_ip.read().await;
+        if let Some(ping_ip) = ping_ip {
             let if_idx = *state.if_index.read().await;
             if if_idx > 0 {
                 tracing::log::info!("Starting ping {ping_ip} (if_idx {if_idx})");
@@ -198,12 +207,20 @@ async fn pinger(state: Arc<std::pin::Pin<Box<MyState>>>) -> anyhow::Result<()> {
                 };
                 let mut ping = ping::EspPing::new(if_idx);
                 state.led_on().await.ok();
-                let res = ping.ping(ping_ip, &conf)?;
+                let res = ping.ping(ping_ip, &conf);
                 state.led_off().await.ok();
                 tracing::log::info!("Pinger result: {res:?}");
-                if res.received == 0 {
-                    tracing::log::error!("Ping failed, rebooting.");
+                if !matches!(res, Ok(ref summary) if summary.received > 0) {
                     sleep(Duration::from_millis(2000)).await;
+                    if !*state.wifi_up.read().await
+                        || state.wifi_generation.load(Ordering::Relaxed) != generation
+                        || *state.ping_ip.read().await != Some(ping_ip)
+                        || *state.if_index.read().await != if_idx
+                    {
+                        info!("Network changed during ping; leaving recovery to WiFi.");
+                        continue;
+                    }
+                    tracing::log::error!("Ping failed on unchanged connection, rebooting.");
                     esp_idf_hal::reset::restart();
                 }
             } else {

@@ -3,5 +3,5 @@ set -e
 set -x
 FLAGS="--no-default-features --features esp32c3,ws2812"
 cargo build -r $FLAGS
-espflash save-image --chip esp32c3 --partition-table ./partitions.csv ./target/riscv32imc-esp-espidf/release/esp32clock firmware.bin
+espflash save-image --chip esp32c3 --partition-table ./partitions.csv ./target/riscv32imc-esp-espidf/release/esp32clock firmware_ws2812.bin
 # EOF

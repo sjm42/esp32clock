@@ -21,6 +21,7 @@ A WiFi-connected ESP32-C3 clock firmware that can drive either:
 - DS18B20 1-wire temperature sensor support with MQTT publishing
 - sunrise/sunset-based automatic day/night LED brightness adjustment
 - animated date and temperature displays :grin:
+- compact Latin-9 display text encoding, preserving Finnish characters and decimal references for unsupported characters
 - OTA firmware updates with dual partition slots
 - gateway health check with automatic reboot on connectivity loss
 - short-press button entry to WiFi AP configuration mode
@@ -42,6 +43,9 @@ A WiFi-connected ESP32-C3 clock firmware that can drive either:
 
 Toolchain and target are configured in `rust-toolchain.toml` and `.cargo/config.toml`.
 The supported target is ESP32-C3 (`riscv32imc-esp-espidf`).
+ESP-IDF is pinned to `v6.1`, with `esp-idf-hal` 0.47, `esp-idf-svc` 0.53,
+and `esp-idf-sys` 0.38. MQTT is supplied by the managed `espressif/mqtt` 1.1.0
+component (it is no longer bundled in ESP-IDF).
 
 Install and export Espressif's Rust toolchain before building:
 
@@ -54,6 +58,8 @@ cargo install --locked espflash cargo-espflash ldproxy
 
 During the build, `build.rs` compresses the files in `static/` and embeds the
 gzipped assets into the firmware image.
+Both OTA-image scripts check the generated application image against the smaller
+OTA slot in `partitions.csv` and fail if it does not fit.
 
 ```bash
 # build release firmware
@@ -180,6 +186,13 @@ Recent UI changes:
 This is an embedded firmware project and the binary uses `harness = false`, so
 there is no standard unit-test flow yet.
 
+The standalone Latin-9 encoder tests can run on the host without ESP hardware:
+
+```bash
+rustc --edition=2024 --test src/latin9.rs -o target/latin9-tests
+./target/latin9-tests
+```
+
 Recommended validation. The display backends are mutually exclusive, so do not
 use `--all-features`; check the default MAX7219 build and WS2812 separately.
 
@@ -192,7 +205,17 @@ use `--all-features`; check the default MAX7219 build and WS2812 separately.
   - long button hold factory-resets config and reboots
   - `/config` GET/POST works
   - MQTT message/display controls work (if enabled)
+  - Finnish characters, the euro sign, and unsupported characters display as before
   - optional DS18B20 reading/publishing works (if enabled)
+  - disconnect/reconnect the access point; verify cached IP/gateway refresh and
+    no ping-watchdog reboot during the outage (also test DHCP and static IP)
+  - send another message while one is scrolling; verify prompt API response
+  - verify the display stays responsive during DS18B20 conversion
+- OTA migration test on each display backend: update from the previously
+  installed firmware, verify reboot and preserved settings, then update again
+  to exercise the other slot; a serial-flashed boot alone does not test this path
+- OTA failure tests: invalid URL, HTTP 404, and interrupted download should show
+  an error without scheduling a reboot into the incomplete image
 
 ## Build-time environment variables
 
@@ -201,11 +224,19 @@ These can be set before build to override defaults:
 - `WIFI_SSID`, `WIFI_PASS` - default WiFi credentials written when default config is created
 - `API_PORT` - default HTTP API port written when default config is created
 - `MCU` - MCU selection helper used by ESP build tooling (defaults to `esp32c3`)
-- `ESP_IDF_VERSION` - ESP-IDF version used by the build (currently `v5.5.4` in `.cargo/config.toml`)
+- `ESP_IDF_VERSION` - ESP-IDF version used by the build (currently `v6.1` in `.cargo/config.toml`)
 - `CRATE_CC_NO_DEFAULTS` - set to `1` in `.cargo/config.toml` for ESP C/C++ build flags
 - `CHRONO_TZ_TIMEZONE_FILTER` - timezone list filter (default `Europe/.*`)
 
 ## API and configuration
+
+The serialized configuration, including its CRC, has a 512-byte application
+buffer limit. Existing settings remain readable without a migration. Downgrading
+to firmware with the old 256-byte buffer cannot read settings larger than 256
+bytes and may restore defaults. Only the actual serialized bytes are stored in NVS.
+
+HTTP request bodies are limited to 8 KiB. Configuration saves and successful OTA
+updates schedule a reboot after two seconds to allow the response to reach the browser.
 
 Read the current runtime config with a GET request:
 

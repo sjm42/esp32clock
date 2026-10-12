@@ -32,6 +32,8 @@ pub struct MyState {
     pub nvs: RwLock<nvs::EspNvs<nvs::NvsDefault>>,
     pub activity_led: Mutex<gpio::PinDriver<'static, gpio::Output>>,
     pub wifi_up: RwLock<bool>,
+    // Updated by the ESP event task even while a blocking ping occupies the Rust executor.
+    pub wifi_generation: AtomicU32,
     pub if_index: RwLock<u32>,
     pub ip_addr: RwLock<Ipv4Addr>,
     pub ping_ip: RwLock<Option<Ipv4Addr>>,
@@ -69,6 +71,7 @@ impl MyState {
             nvs: RwLock::new(nvs),
             activity_led: Mutex::new(activity_led),
             wifi_up: RwLock::new(false),
+            wifi_generation: AtomicU32::new(0),
             if_index: RwLock::new(0),
             ip_addr: RwLock::new(net::Ipv4Addr::new(0, 0, 0, 0)),
             ping_ip: RwLock::new(None),

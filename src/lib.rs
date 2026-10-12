@@ -108,6 +108,7 @@ mod clock;
 mod config;
 mod display;
 mod font;
+mod latin9;
 mod mqtt;
 mod onewire;
 mod state;

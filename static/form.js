@@ -133,6 +133,17 @@ const handleFwSubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const url = form.action;
+    const firmwareUrl = String(new FormData(form).get("url") || "").trim();
+
+    try {
+        const parsed = new URL(firmwareUrl);
+        if (parsed.protocol !== "http:") {
+            throw new Error("Firmware URL must start with http://");
+        }
+    } catch (_error) {
+        setFormStatus(form, "error", "Firmware URL must start with http://");
+        return;
+    }
 
     if (!window.confirm("Start firmware update now? The device will reboot if the update succeeds.")) {
         return;
@@ -142,6 +153,7 @@ const handleFwSubmit = async (event) => {
     setFormStatus(form, "busy", "Downloading and flashing firmware...");
     try {
         const formData = new FormData(form);
+        formData.set("url", firmwareUrl);
         const responseData = await postFwForm({url, formData});
         console.log({responseData});
         setFormStatus(form, "ok", responseData.message || "Firmware update started");

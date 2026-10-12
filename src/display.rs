@@ -3,9 +3,8 @@
 use std::borrow::Cow;
 
 use bit_reverse::LookupReverse;
-use encoding_rs::*;
 
-use crate::*;
+use crate::{latin9, *};
 
 const ELEMS: usize = 8;
 const MAX_TEXT_SIZE: usize = 256;
@@ -31,20 +30,17 @@ impl MyDisplay {
         Self::new(true)
     }
 
-    pub fn print<S>(&mut self, s: S, add_dots: bool)
-    where
-        S: AsRef<str>,
-    {
-        let c_count = s.as_ref().chars().count();
+    pub fn print(&mut self, s: &str, add_dots: bool) {
+        let c_count = s.chars().count();
         let msg = if c_count <= ELEMS {
-            s.as_ref()
+            s
         } else {
-            let cut = s.as_ref().floor_char_boundary(ELEMS);
-            let (s1, _s2) = s.as_ref().split_at(cut);
+            let cut = s.floor_char_boundary(ELEMS);
+            let (s1, _s2) = s.split_at(cut);
             s1
         };
 
-        let (buf, _c, _e) = ISO_8859_15.encode(msg);
+        let buf = latin9::encode(msg);
 
         self.clear();
         for (d, c) in buf.iter().enumerate().take(ELEMS) {
@@ -100,24 +96,21 @@ impl MyDisplay {
         self.show_buf(&self.fbuf, led_mat);
     }
 
-    pub async fn marquee<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, s: S)
-    where
-        S: AsRef<str>,
-    {
+    pub async fn marquee(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, s: &str) {
         let delay = std::cmp::max(1, delay_ms as u64);
 
         // truncate too long strings
-        let c_count = s.as_ref().chars().count();
+        let c_count = s.chars().count();
         let msg = if c_count < MAX_TEXT_SIZE {
-            s.as_ref()
+            s
         } else {
-            let cut = s.as_ref().floor_char_boundary(MAX_TEXT_SIZE);
-            let (s1, _s2) = s.as_ref().split_at(cut);
+            let cut = s.floor_char_boundary(MAX_TEXT_SIZE);
+            let (s1, _s2) = s.split_at(cut);
             s1
         };
 
         // We render a large enough framebuffer for the text
-        let (mut buf, _c, _e) = ISO_8859_15.encode(msg);
+        let mut buf = latin9::encode(msg);
 
         // pad buf to have at least ELEMS items
         if buf.len() < ELEMS {
@@ -158,24 +151,21 @@ impl MyDisplay {
         self.show(led_mat);
     }
 
-    pub async fn vscroll<S>(&mut self, delay_ms: u16, rise: bool, led_mat: &mut LedMatrix<'_>, s: S)
-    where
-        S: AsRef<str>,
-    {
+    pub async fn vscroll(&mut self, delay_ms: u16, rise: bool, led_mat: &mut LedMatrix<'_>, s: &str) {
         let delay = std::cmp::max(1, delay_ms as u64);
 
         // truncate too long strings
-        let c_count = s.as_ref().chars().count();
+        let c_count = s.chars().count();
         let msg = if c_count < MAX_TEXT_SIZE {
-            s.as_ref()
+            s
         } else {
-            let cut = s.as_ref().floor_char_boundary(MAX_TEXT_SIZE);
-            let (s1, _s2) = s.as_ref().split_at(cut);
+            let cut = s.floor_char_boundary(MAX_TEXT_SIZE);
+            let (s1, _s2) = s.split_at(cut);
             s1
         };
 
         // We render a large enough framebuffer for the text
-        let (mut buf, _c, _e) = ISO_8859_15.encode(msg);
+        let mut buf = latin9::encode(msg);
 
         // pad buf to have at least ELEMS items
         if buf.len() < ELEMS {
@@ -284,10 +274,7 @@ impl MyDisplay {
         }
     }
 
-    pub async fn message<S>(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, msg: S, lang: &MyLang)
-    where
-        S: AsRef<str>,
-    {
+    pub async fn message(&mut self, delay_ms: u16, led_mat: &mut LedMatrix<'_>, msg: &str, lang: &MyLang) {
         let v = match lang {
             MyLang::Eng => "Message!",
             MyLang::Fin => "-Viesti!",
@@ -305,10 +292,10 @@ impl MyDisplay {
             sleep(Duration::from_millis(200)).await;
         }
 
-        Box::pin(self.vscroll(delay_ms, true, led_mat, msg.as_ref())).await;
+        Box::pin(self.vscroll(delay_ms, true, led_mat, msg)).await;
         sleep(Duration::from_millis(1000)).await;
 
-        Box::pin(self.marquee(delay_ms, led_mat, msg.as_ref())).await;
+        Box::pin(self.marquee(delay_ms, led_mat, msg)).await;
     }
 }
 

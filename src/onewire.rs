@@ -1,10 +1,7 @@
 // onewire.rs
 
 use embedded_hal::digital::{InputPin, OutputPin};
-use esp_idf_hal::{
-    delay::{Ets, FreeRtos},
-    gpio,
-};
+use esp_idf_hal::{delay::Ets, gpio};
 use one_wire_bus::{Address, OneWire, OneWireError};
 
 use crate::*;
@@ -27,10 +24,15 @@ where
     E: std::fmt::Debug,
 {
     let sensor = ds18b20::Ds18b20::new::<E>(addr.to_owned())?;
-    sensor.set_config(i8::MIN, i8::MAX, ds18b20::Resolution::Bits12, one_wire_bus, &mut Ets)?;
+    let resolution = ds18b20::Resolution::Bits12;
+    sensor.set_config(i8::MIN, i8::MAX, resolution, one_wire_bus, &mut Ets)?;
     sleep(Duration::from_millis(50)).await; // extra sleep
     sensor.start_temp_measurement(one_wire_bus, &mut Ets)?;
-    ds18b20::Resolution::Bits12.delay_for_measurement_time(&mut FreeRtos);
+    // Yield to the other tasks while the sensor performs its conversion.
+    sleep(Duration::from_millis(u64::from(
+        resolution.max_measurement_time_millis(),
+    )))
+    .await;
     sleep(Duration::from_millis(10)).await; // extra sleep
 
     // Quite often we have to retry, CrcMismatch is observed occasionally

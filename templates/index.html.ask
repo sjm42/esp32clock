@@ -79,7 +79,8 @@
 <section class="panel danger">
 <h2>Update firmware (DANGER)</h2>
 <form action="/fw" method="POST" name="esp32fw">
-    <input type="text" id="firmware" name="url">
+    <label for="firmware">HTTP firmware URL:</label>
+    <input type="url" id="firmware" name="url" placeholder="http://example.com/firmware.bin" pattern="http://.*" required>
     <input type="submit" value="Update!">
 </form>
 </section>

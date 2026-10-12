@@ -2,11 +2,15 @@
 
 use std::any::Any;
 
+use anyhow::Context;
 use askama::Template;
 use axum::{
     Json,
     body::Body,
-    extract::{Form, State},
+    extract::{
+        DefaultBodyLimit, Form, State,
+        rejection::{FormRejection, JsonRejection},
+    },
     http::{Response, StatusCode, header},
     response::{Html, IntoResponse},
     routing::*,
@@ -17,6 +21,50 @@ use esp_idf_svc::{http::client::EspHttpConnection, io, ota::EspOta};
 use serde_json::json;
 
 pub use crate::*;
+
+const HTTP_BODY_LIMIT: usize = 8 * 1024;
+const REBOOT_DELAY: Duration = Duration::from_secs(2);
+
+type ApiResult<T> = Result<T, ApiError>;
+
+#[derive(Debug, thiserror::Error)]
+enum ApiError {
+    #[error("{0}")]
+    BadRequest(String),
+    #[error("{0}")]
+    BadGateway(String),
+    #[error(transparent)]
+    Internal(#[from] anyhow::Error),
+}
+
+impl ApiError {
+    fn bad_request(message: impl Into<String>) -> Self {
+        Self::BadRequest(message.into())
+    }
+
+    fn bad_gateway(message: impl Into<String>) -> Self {
+        Self::BadGateway(message.into())
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response<Body> {
+        error!("HTTP handler failed: {self:#}");
+        let (status, message) = match self {
+            Self::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+            Self::BadGateway(message) => (StatusCode::BAD_GATEWAY, message),
+            Self::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+        };
+        json_error(status, message)
+    }
+}
+
+fn schedule_reboot(state: Arc<Pin<Box<MyState>>>) {
+    tokio::spawn(async move {
+        sleep(REBOOT_DELAY).await;
+        *state.reset.write().await = true;
+    });
+}
 
 macro_rules! static_handler {
     ($fn_name:ident, $path:literal, $content_type:literal, $bytes:expr) => {
@@ -78,6 +126,7 @@ pub async fn run_api_server(state: Arc<Pin<Box<MyState>>>) -> anyhow::Result<()>
         .route("/config", get(get_config).post(set_config).options(options))
         .route("/reset_config", get(reset_config))
         .route("/fw", post(update_fw).options(options))
+        .layer(DefaultBodyLimit::max(HTTP_BODY_LIMIT))
         .with_state(state);
     // .layer(TraceLayer::new_for_http());
 
@@ -118,9 +167,16 @@ pub async fn get_index(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response<
     (StatusCode::OK, Html(index)).into_response()
 }
 
-pub async fn send_msg(State(state): State<Arc<Pin<Box<MyState>>>>, Json(message): Json<MyMessage>) -> Response<Body> {
+pub async fn send_msg(
+    State(state): State<Arc<Pin<Box<MyState>>>>,
+    message: Result<Json<MyMessage>, JsonRejection>,
+) -> Response<Body> {
     let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} send_msg()");
+    let Json(message) = match message {
+        Ok(message) => message,
+        Err(error) => return json_error(error.status(), format!("Invalid message JSON: {error}")),
+    };
 
     let msg = message.msg;
     info!("Got msg: {msg}");
@@ -152,10 +208,14 @@ pub async fn get_config(State(state): State<Arc<Pin<Box<MyState>>>>) -> Response
 
 pub async fn set_config(
     State(state): State<Arc<Pin<Box<MyState>>>>,
-    Json(mut config): Json<MyConfig>,
+    config: Result<Json<MyConfig>, JsonRejection>,
 ) -> Response<Body> {
     let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} set_conf()");
+    let Json(mut config) = match config {
+        Ok(config) => config,
+        Err(error) => return json_error(error.status(), format!("Invalid config JSON: {error}")),
+    };
 
     if config.v4mask > 30 {
         let emsg = "IPv4 mask error: bits must be between 0..30\n";
@@ -215,8 +275,9 @@ async fn save_config(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Respons
     let mut nvs = state.nvs.write().await;
     match config.to_nvs(&mut nvs) {
         Ok(_) => {
+            drop(nvs);
             info!("Config saved to nvs. Resetting soon...");
-            *state.reset.write().await = true;
+            schedule_reboot(state);
             json_ok("config saved, restarting")
         }
         Err(e) => {
@@ -229,74 +290,58 @@ async fn save_config(state: Arc<Pin<Box<MyState>>>, config: MyConfig) -> Respons
 
 async fn update_fw(
     State(state): State<Arc<Pin<Box<MyState>>>>,
-    Form(fw_update): Form<UpdateFirmware>,
-) -> Response<Body> {
+    fw_update: Result<Form<UpdateFirmware>, FormRejection>,
+) -> ApiResult<Response<Body>> {
     let cnt = state.api_cnt.fetch_add(1, Ordering::Relaxed);
     info!("#{cnt} update_fw()");
 
+    let Form(fw_update) = match fw_update {
+        Ok(form) => form,
+        Err(error) => return Ok(json_error(error.status(), format!("Invalid firmware request: {error}"))),
+    };
     info!("Firmware update: \n{fw_update:#?}");
-    let url = fw_update.url.trim().to_owned();
-    if url.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "firmware url cannot be empty");
-    }
+    let url = fw_update.url.trim();
     if !url.starts_with("http://") {
-        return json_error(StatusCode::BAD_REQUEST, "firmware url must start with http://");
+        return Err(ApiError::bad_request("Firmware URL must start with http://"));
     }
 
-    let mut ota = match EspOta::new() {
-        Ok(ota) => ota,
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("OTA init failed: {e:?}")),
-    };
+    let mut ota = EspOta::new().context("could not acquire OTA service")?;
+    let connection =
+        EspHttpConnection::new(&Default::default()).context("could not create firmware HTTP connection")?;
+    let mut client = HttpClient::wrap(connection);
+    let req = client
+        .get(url)
+        .map_err(|error| ApiError::bad_request(format!("Invalid firmware URL: {error}")))?;
+    let resp = req
+        .submit()
+        .map_err(|error| ApiError::bad_gateway(format!("Firmware download failed: {error}")))?;
+    if resp.status() != 200 {
+        return Err(ApiError::bad_gateway(format!(
+            "Firmware download failed: HTTP {}",
+            resp.status()
+        )));
+    }
 
-    let conn = match EspHttpConnection::new(&Default::default()) {
-        Ok(conn) => conn,
-        Err(e) => {
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("HTTP client init failed: {e:?}"),
-            );
+    let mut update = ota.initiate_update().context("could not initiate OTA update")?;
+    let mut buffer = Vec::new();
+    buffer
+        .try_reserve_exact(8192)
+        .context("could not allocate OTA transfer buffer")?;
+    buffer.resize(8192, 0_u8);
+
+    io::utils::copy(resp, &mut update, &mut buffer).map_err(|error| match error {
+        io::utils::CopyError::Read(error) => {
+            ApiError::bad_gateway(format!("Firmware download failed while reading: {error}"))
         }
-    };
-    let mut client = HttpClient::wrap(conn);
+        io::utils::CopyError::Write(error) => {
+            ApiError::Internal(anyhow::anyhow!("firmware flash write failed: {error}"))
+        }
+    })?;
+    update.complete().context("firmware validation or activation failed")?;
 
-    let req = match client.get(&url) {
-        Ok(req) => req,
-        Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("invalid firmware url: {e:?}")),
-    };
-
-    let resp = match req.submit() {
-        Ok(resp) => resp,
-        Err(e) => return json_error(StatusCode::BAD_GATEWAY, format!("firmware download failed: {e:?}")),
-    };
-
-    let status = StatusCode::from_u16(resp.status()).unwrap_or(StatusCode::BAD_GATEWAY);
-    if status != StatusCode::OK {
-        return json_error(
-            StatusCode::BAD_GATEWAY,
-            format!("firmware download failed with status {}", resp.status()),
-        );
-    }
-
-    let update_src = Box::new(resp);
-    let mut update = match ota.initiate_update() {
-        Ok(update) => update,
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("OTA start failed: {e:?}")),
-    };
-    let mut buffer = [0_u8; 8192];
-
-    if let Err(e) = io::utils::copy(update_src, &mut update, &mut buffer) {
-        return json_error(StatusCode::BAD_GATEWAY, format!("OTA write failed: {e:?}"));
-    }
-    if let Err(e) = update.complete() {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("OTA finalize failed: {e:?}"));
-    }
-
-    info!("Update done. Restarting...");
-    task::spawn(async {
-        sleep(Duration::from_millis(500)).await;
-        esp_idf_svc::hal::reset::restart();
-    });
-    json_ok("firmware updated, restarting")
+    info!("Update done. Restarting soon...");
+    schedule_reboot(state);
+    Ok(json_ok("firmware updated, restarting"))
 }
 
 fn json_ok(message: &str) -> Response<Body> {
